@@ -15,7 +15,25 @@ The goal of rasterpolygonizer is to …
 You can install the development version of rasterpolygonizer like so:
 
 ``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
+# Install from GitHub
+# install.packages("remotes")
+#remotes::install_github("jashonnew/rasterpolygonizer")
+```
+
+This package provides three main functions:
+
+1.  fill_ground_raster() – fills ground values in a raster.
+
+2.  extract_building_edges_to_polygons() – finds edge patches in a
+    raster.
+
+3.  clean_building_polygons() – cleans and filters building polygons.
+
+For a full example workflow using the included sample raster, see the
+package vignette:
+
+``` r
+#browseVignettes("rasterpolygonizer")
 ```
 
 ## Example
@@ -24,29 +42,34 @@ This is a basic example which shows you how to solve a common problem:
 
 ``` r
 library(rasterpolygonizer)
-## basic example code
+library(terra)
+#> terra 1.8.93
+library(sf)
+#> Linking to GEOS 3.13.0, GDAL 3.10.1, PROJ 9.5.1; sf_use_s2() is TRUE
+
+# Load sample raster
+r_path <- system.file("extdata", "sample_raster.tif", package = "rasterpolygonizer")
+r <- terra::rast(r_path)
+
+# Run full workflow
+r_filled <- fill_ground_raster(r)
+edges <- extract_building_edges_to_polygons(r_filled)
+
+mask_sf <- sf::st_as_sf(terra::as.polygons(r))
+buildings_sf <- clean_building_polygons(edges$closed_edges, mask_sf)
+
+# Visualize (optional)
+library(ggplot2)
+ggplot() +
+  geom_sf(data = buildings_sf, fill = "lightblue", color = "darkblue") +
+  ggtitle("Cleaned Building Polygons") +
+  theme_minimal()
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+<img src="man/figures/README-example-1.png" width="100%" />
 
-``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
-```
+For detailed explanation and additional parameters, see the vignette.
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this.
-
-You can also embed plots, for example:
-
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+The package includes a small example raster:
+`inst/extdata/sample_raster.tif` This is used for testing and
+demonstrating workflows.

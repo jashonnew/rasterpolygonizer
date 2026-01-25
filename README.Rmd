@@ -28,7 +28,7 @@ You can install the development version of rasterpolygonizer like so:
 ```{r}
 # Install from GitHub
 # install.packages("remotes")
-remotes::install_github("jashonnew/rasterpolygonizer")
+#remotes::install_github("jashonnew/rasterpolygonizer")
 ```
 
 This package provides three main functions:
@@ -41,7 +41,7 @@ This package provides three main functions:
 
 For a full example workflow using the included sample raster, see the package vignette:
 ```{r}
-browseVignettes("rasterpolygonizer")
+#browseVignettes("rasterpolygonizer")
 ```
 
 ## Example
