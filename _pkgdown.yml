@@ -1,7 +1,0 @@
-url: https://jashonnew.github.io/rasterpolygonizer/
-template:
-  bootstrap: 5
-reference:
-- title: Raster processing
-  contents: fill_ground_raster
-

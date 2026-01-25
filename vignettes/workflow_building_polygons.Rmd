@@ -1,0 +1,50 @@
+---
+title: "Raster Polygonizer Workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Raster Polygonizer Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+library(rasterpolygonizer)
+
+if (!requireNamespace("sf", quietly = TRUE)) stop("Install 'sf' to run this vignette")
+if (!requireNamespace("terra", quietly = TRUE)) stop("Install 'terra' to run this vignette")
+if (!requireNamespace("rmapshaper", quietly = TRUE)) stop("Install 'rmapshaper' to run this vignette")
+
+```
+
+```{r}
+r_path <- system.file("extdata", "sample_raster.tif", package = "rasterpolygonizer")
+r <- terra::rast(r_path)
+
+r_filled <- fill_ground_raster(r)
+
+edges <- extract_building_edges_to_polygons(r_filled)
+
+# Use raster extent as mask for this example
+mask_poly <- terra::as.polygons(r)
+mask_sf <- sf::st_as_sf(mask_poly)
+
+buildings_sf <- clean_building_polygons(
+  closed_edges = edges$closed_edges,
+  mask_shape = mask_sf,
+  shrink_dist = -0.5,
+  simplify_keep = 0.95,
+  min_area = 1,
+  max_area = 1e6
+)
+
+# Print summary
+buildings_sf
+
+library(ggplot2)
+
+ggplot() +
+  geom_sf(data = buildings_sf, fill = "lightblue", color = "darkblue") +
+  ggtitle("Cleaned Building Polygons") +
+  theme_minimal()
+```
+
