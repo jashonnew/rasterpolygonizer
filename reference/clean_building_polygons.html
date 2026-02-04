@@ -56,9 +56,9 @@
     <div id="ref-usage">
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">clean_building_polygons</span><span class="op">(</span></span>
 <span>  <span class="va">closed_edges</span>,</span>
-<span>  <span class="va">mask_shape</span>,</span>
+<span>  mask_shape <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  shrink_dist <span class="op">=</span> <span class="op">-</span><span class="fl">0.5</span>,</span>
-<span>  simplify_keep <span class="op">=</span> <span class="fl">0.95</span>,</span>
+<span>  simplify_tol <span class="op">=</span> <span class="fl">0.5</span>,</span>
 <span>  min_area <span class="op">=</span> <span class="fl">50</span>,</span>
 <span>  max_area <span class="op">=</span> <span class="fl">8000</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -80,8 +80,8 @@
 <dd><p>Distance to shrink polygons (negative buffer), default -0.5</p></dd>
 
 
-<dt id="arg-simplify-keep">simplify_keep<a class="anchor" aria-label="anchor" href="#arg-simplify-keep"></a></dt>
-<dd><p>Fraction to retain when simplifying, default 0.95</p></dd>
+<dt id="arg-simplify-tol">simplify_tol<a class="anchor" aria-label="anchor" href="#arg-simplify-tol"></a></dt>
+<dd><p>Distance tolerance for simplification, default 0.5</p></dd>
 
 
 <dt id="arg-min-area">min_area<a class="anchor" aria-label="anchor" href="#arg-min-area"></a></dt>
