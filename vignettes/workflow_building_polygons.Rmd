@@ -12,7 +12,8 @@ library(rasterpolygonizer)
 
 if (!requireNamespace("sf", quietly = TRUE)) stop("Install 'sf' to run this vignette")
 if (!requireNamespace("terra", quietly = TRUE)) stop("Install 'terra' to run this vignette")
-if (!requireNamespace("rmapshaper", quietly = TRUE)) stop("Install 'rmapshaper' to run this vignette")
+#if (!requireNamespace("rmapshaper", quietly = TRUE)) stop("Install 'rmapshaper' to run this vignette")
+
 
 ```
 
@@ -21,6 +22,8 @@ library(ggplot2)
 
 
 r_path <- system.file("extdata", "sample_raster.tif", package = "rasterpolygonizer")
+stopifnot(nzchar(r_path))
+
 r <- terra::rast(r_path)
 
 r_df_raw <- as.data.frame(r, xy = TRUE, na.rm = TRUE)
