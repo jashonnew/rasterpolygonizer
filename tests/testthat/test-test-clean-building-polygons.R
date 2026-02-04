@@ -22,7 +22,7 @@ test_that("clean_building_polygons works on sample raster", {
     closed_edges = closed_edges,
     mask_shape = mask_sf,
     shrink_dist = -0.5,
-    simplify_keep = 0.95,
+    simplify_tol = 0.5,
     min_area = 1,      # small for test raster
     max_area = 1e6
   )

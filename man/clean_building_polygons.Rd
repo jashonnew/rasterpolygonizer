@@ -6,9 +6,9 @@
 \usage{
 clean_building_polygons(
   closed_edges,
-  mask_shape,
+  mask_shape = NULL,
   shrink_dist = -0.5,
-  simplify_keep = 0.95,
+  simplify_tol = 0.5,
   min_area = 50,
   max_area = 8000
 )
@@ -20,7 +20,7 @@ clean_building_polygons(
 
 \item{shrink_dist}{Distance to shrink polygons (negative buffer), default -0.5}
 
-\item{simplify_keep}{Fraction to retain when simplifying, default 0.95}
+\item{simplify_tol}{Distance tolerance for simplification, default 0.5}
 
 \item{min_area}{Minimum polygon area to keep}
 
