@@ -52,7 +52,17 @@ library(ggplot2)
 #> Warning: package 'ggplot2' was built under R version 4.4.3
 
 r_path <- system.file("extdata", "sample_raster.tif", package = "rasterpolygonizer")
+
+load_extdata <- function(filename, pkg = "rasterpolygonizer") {
+  path <- system.file("extdata", filename, package = pkg)
+  if (path == "") stop(sprintf("File '%s' not found in inst/extdata", filename))
+  path
+}
+
+
 r <- terra::rast(r_path)
+b <- sf::st_read(load_extdata("sample_buildings.gpkg"), quiet = TRUE)
+
 
 r_df_raw <- as.data.frame(r, xy = TRUE, na.rm = TRUE)
 names(r_df_raw)[3] <- "value"
@@ -123,6 +133,40 @@ ggplot() +
 ```
 
 <img src="man/figures/README-example-3.png" width="100%" />
+
+``` r
+
+terra::crs(r) <- "EPSG:32606"
+r_crs <- terra::crs(r)
+
+buildings_sf <- sf::st_set_crs(buildings_sf, r_crs)
+b <- sf::st_set_crs(b, r_crs)
+
+filtered <- filter_by_ground_truth(
+  buildings_sf,
+  b,
+  threshold = 0.5
+)
+
+r_df <- as.data.frame(r_filled, xy = TRUE, na.rm = TRUE)
+names(r_df)[3] <- "value"
+ggplot() +
+  geom_raster(
+    data = r_df,
+    aes(x = x, y = y, fill = value)
+  ) +
+  geom_sf(
+    data = filtered,
+    fill = NA,
+    color = "red",
+    linewidth = 0.6
+  ) +
+  coord_sf() +
+  scale_fill_viridis_c(na.value = "transparent") +
+  theme_minimal()
+```
+
+<img src="man/figures/README-unnamed-chunk-4-1.png" width="100%" />
 
 For detailed explanation and additional parameters, see the vignette.
 
