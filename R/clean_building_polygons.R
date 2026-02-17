@@ -1,3 +1,8 @@
+# Internal helper — not exported
+explode_rings <- function(geom) {
+  lapply(seq_along(geom), function(i) sf::st_polygon(list(geom[[i]])))
+}
+
 #' Clean building polygons from closed edges raster
 #'
 #' Convert a raster of closed edges into clean, simplified, filtered polygons.
@@ -10,6 +15,7 @@
 #' @param max_area Maximum polygon area to keep
 #' @return sf object with cleaned building polygons
 #' @export
+
 clean_building_polygons <- function(
     closed_edges,
     mask_shape = NULL,
@@ -24,7 +30,6 @@ clean_building_polygons <- function(
     stop("mask_shape must be an sf object if provided")
   }
 
-  # Crop and mask raster
   if (!is.null(mask_shape)) {
     r_crop   <- terra::crop(closed_edges, mask_shape)
     r_masked <- terra::mask(r_crop, mask_shape)
@@ -32,44 +37,67 @@ clean_building_polygons <- function(
     r_masked <- closed_edges
   }
 
-  # Convert raster to polygons
-  building_polys <- terra::as.polygons(r_masked, dissolve = TRUE)
-  building_sf <- sf::st_as_sf(building_polys)
+  # Invert: polygonize the FALSE (purple/interior) regions.
+  # The yellow edge loops enclose purple interiors — those interiors
+  # are the actual building footprints we want as polygons.
+  r_interior <- !r_masked
+
+  building_polys <- terra::as.polygons(r_interior, dissolve = TRUE)
+  building_sf    <- sf::st_as_sf(building_polys)
+
+  # Keep only the interior (TRUE after inversion) class
+  # as.polygons will produce two rows: one for FALSE regions, one for TRUE
+  col <- names(building_sf)[1]
+  building_sf <- building_sf[building_sf[[col]] == 1, ]
 
   # Shrink polygons
   building_sf <- sf::st_buffer(building_sf, dist = shrink_dist)
   building_sf <- sf::st_make_valid(building_sf)
 
-  # Simplify polygons
+  # Simplify
   building_sf <- sf::st_simplify(building_sf, dTolerance = simplify_tol, preserveTopology = TRUE)
 
-  # --- SPLIT INTO INDIVIDUAL BUILDINGS ---
-  building_sf <- sf::st_cast(building_sf, "POLYGON", warn = FALSE)
+  # Explode all rings into individual polygons
+  crs <- sf::st_crs(building_sf)
 
-  # Assign unique building IDs
+  all_polys <- unlist(lapply(sf::st_geometry(building_sf), function(geom) {
+    if (inherits(geom, "MULTIPOLYGON")) {
+      unlist(lapply(seq_along(geom), function(i) {
+        explode_rings(geom[[i]])
+      }), recursive = FALSE)
+    } else {
+      explode_rings(geom)
+    }
+  }), recursive = FALSE)
+
+  building_sf <- sf::st_sf(
+    geometry = sf::st_sfc(all_polys, crs = crs)
+  )
+
+  building_sf <- sf::st_make_valid(building_sf)
   building_sf$building_id <- seq_len(nrow(building_sf))
 
-  # Drop empty or invalid geometries
   building_sf <- building_sf[
     !sf::st_is_empty(building_sf) &
       sf::st_is_valid(building_sf),
   ]
 
-  # --- NOW compute geometry metrics ---
   building_sf$area  <- as.numeric(sf::st_area(building_sf))
   building_sf$perim <- as.numeric(sf::st_length(building_sf))
   building_sf$perim_area_ratio <- building_sf$perim / building_sf$area
 
-
-  # Compute number of vertices
   building_sf$vertices <- sapply(sf::st_geometry(building_sf), function(x) {
     sum(sapply(x, function(polygon) nrow(polygon)))
   })
 
-  # Filter polygons by area
-  building_sf <- building_sf[building_sf$area > min_area & building_sf$area < max_area, , drop = FALSE]
+  # Area filter now cleanly separates buildings from background:
+  # - too small: noise/gaps between edge pixels
+  # - too large: the surrounding ground/background region
+  building_sf <- building_sf[
+    building_sf$area > min_area & building_sf$area < max_area, ,
+    drop = FALSE
+  ]
 
-  # Transform CRS only if both have valid CRS
   if (!is.null(mask_shape) &&
       !is.na(sf::st_crs(mask_shape)) &&
       !is.na(sf::st_crs(building_sf))) {
