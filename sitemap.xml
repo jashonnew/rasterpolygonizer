@@ -8,6 +8,7 @@
 <url><loc>/index.html</loc></url>
 <url><loc>/reference/clean_building_polygons.html</loc></url>
 <url><loc>/reference/conv_with_kernel.html</loc></url>
+<url><loc>/reference/estimate_building_height.html</loc></url>
 <url><loc>/reference/extract_building_edges_to_polygons.html</loc></url>
 <url><loc>/reference/fill_ground_raster.html</loc></url>
 <url><loc>/reference/filter_by_ground_truth.html</loc></url>
