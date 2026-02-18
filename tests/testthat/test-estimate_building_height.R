@@ -72,7 +72,7 @@ test_that("height robust to interior dip artifact", {
   r[!is.na(mask)] <- 20
 
   # introduce single low dip
-  r[cellFromXY(r, cbind(25,25))] <- 0
+  r[terra::cellFromXY(r, cbind(25,25))] <- 0
 
   result <- estimate_building_height(poly, r)
 

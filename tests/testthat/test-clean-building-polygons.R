@@ -1,6 +1,5 @@
 test_that("clean_building_polygons works on sample raster", {
   skip_if_not_installed("sf")
-  skip_if_not_installed("rmapshaper")
 
   library(terra)
   library(sf)
