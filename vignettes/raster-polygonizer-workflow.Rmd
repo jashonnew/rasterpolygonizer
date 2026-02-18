@@ -1,0 +1,325 @@
+---
+title: "Raster Polygonizer Workflow"
+output:
+  rmarkdown::html_vignette:
+    css: vignette-style.css
+vignette: >
+  %\VignetteIndexEntry{Raster Polygonizer Workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo       = TRUE,
+  message    = FALSE,
+  warning    = FALSE,
+  fig.align  = "center",
+  fig.width  = 7,
+  fig.height = 4.5
+)
+library(rasterpolygonizer)
+if (!requireNamespace("sf",    quietly = TRUE)) stop("Install 'sf' to run this vignette")
+if (!requireNamespace("terra", quietly = TRUE)) stop("Install 'terra' to run this vignette")
+```
+
+# From LiDAR Scan to Building Footprint
+
+*A complete workflow for extracting, filtering, and characterizing rooftop polygons from aerial elevation data*
+
+---
+
+## Why This Package?
+
+Heavy snow accumulation on rooftops is a serious safety concern in cold climates — when loads grow too large, roofs can fail catastrophically. Understanding and predicting this risk requires detailed information about building geometry across entire cities, but traditional manual surveys are slow, expensive, and limited in scale.
+
+Airborne LiDAR (Light Detection and Ranging) offers a powerful alternative. By bouncing laser pulses off surfaces from an aircraft and recording the return time, LiDAR produces dense, precise three-dimensional maps of the built environment. Comparing scans taken before and after a snowfall event makes it possible to measure rooftop snow accumulation automatically — at city scale, for thousands of buildings at once.
+
+`rasterpolygonizer` packages the full processing chain needed to go from a raw LiDAR-derived elevation raster to a clean, attributed set of building footprints, ready for snow load analysis, engineering assessment, or any other rooftop-scale application.
+
+---
+
+## Workflow Overview
+
+The six functions in this package form a linear pipeline. Each step produces output consumed by the next:
+
+| Step | Function | Purpose |
+|:----:|----------|---------|
+| 1 | `fill_ground_raster()` | Fill voids and smooth the elevation surface |
+| 2 | `extract_building_edges_to_polygons()` | Detect elevation edges and close them into candidate polygons |
+| 3 | `clean_building_polygons()` | Shrink, simplify, and filter polygons by area |
+| 4 | `filter_by_ground_truth()` | Validate detections against a reference footprint layer |
+| 5 | `remove_invalid_polys()` | Drop polygons with insufficient raster coverage |
+| 6a | `estimate_building_height()` | Extract mean rooftop elevation per polygon |
+| 6b | `roof_slope_RANSAC()` | Fit robust planes and derive slope and aspect per roof |
+
+Steps 6a and 6b are independent characterization steps — run either or both depending on your analysis goals.
+
+---
+
+## Load Example Data
+
+```{r load-data}
+library(ggplot2)
+
+load_extdata <- function(filename, pkg = "rasterpolygonizer") {
+  path <- system.file("extdata", filename, package = pkg)
+  if (path == "") stop(sprintf("File '%s' not found in inst/extdata", filename))
+  path
+}
+
+r <- terra::rast(load_extdata("sample_raster.tif"))
+b <- sf::st_read(load_extdata("sample_buildings.gpkg"), quiet = TRUE)
+```
+
+The sample dataset covers a small area of Fairbanks, Alaska. `r` is a LiDAR-derived digital surface model (DSM) — a raster where each cell records the elevation of the highest surface at that location, whether bare earth, a rooftop, or a tree. `b` contains manually digitized building footprints used later as a validation reference.
+
+---
+
+## A Shared Plot Theme
+
+To keep figures consistent throughout the vignette, we define a shared ggplot theme and color scale built around earth tones — the natural palette of terrain and built surfaces in LiDAR data.
+
+```{r theme}
+theme_rp <- function() {
+  theme_minimal(base_size = 11) +
+    theme(
+      plot.background   = element_rect(fill = "#f5f0e8", color = NA),
+      panel.background  = element_rect(fill = "#f5f0e8", color = NA),
+      panel.grid        = element_line(color = "#ddd5c0", linewidth = 0.3),
+      plot.title        = element_text(face = "bold", color = "#3b2f1e", size = 12),
+      plot.subtitle     = element_text(color = "#6b5740", size = 10),
+      legend.background = element_rect(fill = "#f5f0e8", color = NA),
+      legend.title      = element_text(color = "#3b2f1e", size = 9),
+      legend.text       = element_text(color = "#3b2f1e", size = 8),
+      axis.text         = element_text(color = "#6b5740", size = 8)
+    )
+}
+
+scale_fill_rp <- function(...) {
+  scale_fill_gradientn(
+    colors = c("#4a3728", "#7a5c3e", "#b08a5a", "#d4b483", "#e8d5a3", "#f0e8c8"),
+    ...
+  )
+}
+```
+
+---
+
+## Step 1 — Fill the Ground Raster
+
+**`fill_ground_raster(raster)`**
+
+LiDAR point clouds frequently contain data voids — areas where the sensor received no usable return, often under dense vegetation, at steep angles, or near flight strip edges. Left unfilled, these holes create discontinuities that interrupt edge detection downstream. This function applies spatial interpolation to fill NA cells and produce a continuous elevation surface. No tunable parameters are exposed; run it as-is before any other step.
+
+```{r fill}
+r_df_raw <- as.data.frame(r, xy = TRUE, na.rm = TRUE)
+names(r_df_raw)[3] <- "value"
+
+ggplot(r_df_raw) +
+  geom_raster(aes(x = x, y = y, fill = value)) +
+  coord_equal() +
+  scale_fill_rp(name = "Elev. (m)") +
+  theme_rp() +
+  labs(
+    title    = "Raw Input Raster",
+    subtitle = "LiDAR digital surface model — voids appear where returns were absent or filtered"
+  )
+
+r_filled <- fill_ground_raster(r)
+
+r_df_filled <- as.data.frame(r_filled, xy = TRUE, na.rm = TRUE)
+names(r_df_filled)[3] <- "value"
+
+ggplot(r_df_filled) +
+  geom_raster(aes(x = x, y = y, fill = value)) +
+  coord_equal() +
+  scale_fill_rp(name = "Elev. (m)") +
+  theme_rp() +
+  labs(
+    title    = "Filled Ground Raster",
+    subtitle = "Voids have been interpolated — the surface is now continuous"
+  )
+```
+
+---
+
+## Step 2 — Extract Building Edge Polygons
+
+**`extract_building_edges_to_polygons(raster, thr_prob)`**
+
+Buildings appear in a DSM as abrupt vertical discontinuities — places where elevation jumps sharply from ground level to rooftop height. This function detects those elevation gradients, traces their outlines, and assembles the resulting edge pixels into closed polygons.
+
+**Key parameter — `thr_prob`** (default `0.8`): The probability threshold controlling which pixels are classified as building edges. Higher values are more conservative, retaining only the sharpest and most obvious edges. For scenes with many small or tightly-packed buildings, a higher `thr_prob` reduces false detections from vegetation and clutter. For sparse or large buildings where you want more complete outlines, a lower value recovers more edge detail.
+
+```{r edges}
+edges <- extract_building_edges_to_polygons(r_filled, thr_prob = 0.8)
+```
+
+---
+
+## Step 3 — Clean Building Polygons
+
+**`clean_building_polygons(closed_edges, shrink_dist, simplify_tol, min_area, max_area)`**
+
+Raw edge polygons tend to be jagged and oversized — edge detection traces the outer perimeter of the gradient band, which sits just outside the true rooftop boundary. This function applies three successive cleaning operations.
+
+**`shrink_dist`** (negative value, e.g. `-0.5`): Pulls polygon edges inward by this distance in map units, compensating for the outward bias of edge detection. Use a more negative value when your raster has coarser resolution or when building walls are thick relative to cell size.
+
+**`simplify_tol`** (e.g. `2.5`): Douglas-Peucker simplification tolerance. Smooths jagged outlines without losing the overall footprint shape. Larger values produce simpler, blockier polygons.
+
+**`min_area` / `max_area`**: Polygons outside this size range are dropped. Set `min_area` to exclude noise patches and small vegetation clumps; set `max_area` to exclude large merged regions unlikely to represent individual buildings.
+
+```{r clean}
+buildings_sf <- clean_building_polygons(
+  closed_edges = edges$closed_edges,
+  shrink_dist  = -0.5,
+  simplify_tol = 2.5,
+  min_area     = 19.99,
+  max_area     = 3000
+)
+
+r_df <- as.data.frame(r_filled, xy = TRUE, na.rm = TRUE)
+names(r_df)[3] <- "value"
+
+ggplot() +
+  geom_raster(data = r_df, aes(x = x, y = y, fill = value)) +
+  geom_sf(data = buildings_sf, fill = NA, color = "#8b2500", linewidth = 0.6) +
+  coord_sf() +
+  scale_fill_rp(name = "Elev. (m)") +
+  theme_rp() +
+  labs(
+    title    = "Candidate Building Polygons",
+    subtitle = "Cleaned and size-filtered — outlines shown over the filled raster"
+  )
+```
+
+---
+
+## Step 4 — Filter by Ground Truth
+
+**`filter_by_ground_truth(buildings, reference, threshold)`**
+
+Not every candidate polygon corresponds to a real building — some may be vegetation, elevated infrastructure, or detection artifacts. When a reference layer of known building footprints is available (e.g., from municipal records or manual digitizing), this function uses spatial overlap to keep only the detections that match a reference polygon. If no reference layer is available, skip this step.
+
+**Key parameter — `threshold`** (default `0.5`): The minimum fractional overlap (intersection-over-union) required to accept a candidate as a true detection. A value of `0.5` requires at least 50% area overlap with a reference polygon. Lower this to recover partial matches; raise it to require tighter geometric agreement.
+
+```{r filter}
+# Assign a CRS to align all layers (UTM Zone 6N for Fairbanks, AK)
+terra::crs(r)        <- "EPSG:32606"
+r_crs                <- terra::crs(r)
+terra::crs(r_filled) <- r_crs
+buildings_sf         <- sf::st_set_crs(buildings_sf, r_crs)
+b                    <- sf::st_set_crs(b, r_crs)
+
+filtered <- filter_by_ground_truth(
+  buildings_sf,
+  b,
+  threshold = 0.5
+)
+
+ggplot() +
+  geom_raster(data = r_df, aes(x = x, y = y, fill = value)) +
+  geom_sf(data = filtered, fill = NA, color = "#8b2500", linewidth = 0.6) +
+  coord_sf() +
+  scale_fill_rp(name = "Elev. (m)") +
+  theme_rp() +
+  labs(
+    title    = "After Ground Truth Filtering",
+    subtitle = "Only polygons with sufficient overlap with reference footprints are retained"
+  )
+```
+
+---
+
+## Step 5 — Remove Invalid Polygons
+
+**`remove_invalid_polys(buildings, raster)`**
+
+Even after size and overlap filtering, some polygons may fall in areas of the raster too sparse to support reliable analysis — at flight strip edges, or where interpolation could not produce a reliable surface. This function checks raster coverage within each polygon and removes those that fall below an acceptable data density. It is a final data quality gate, requires no parameters, and should always be run before the characterization steps.
+
+```{r remove-invalid}
+valid_polys <- remove_invalid_polys(filtered, r_filled)
+
+ggplot() +
+  geom_raster(data = r_df, aes(x = x, y = y, fill = value)) +
+  geom_sf(data = valid_polys, fill = NA, color = "#8b2500", linewidth = 0.6) +
+  coord_sf() +
+  scale_fill_rp(name = "Elev. (m)") +
+  theme_rp() +
+  labs(
+    title    = "Validated Building Polygons",
+    subtitle = "Polygons with insufficient raster coverage have been removed"
+  )
+```
+
+---
+
+## Step 6a — Estimate Building Height
+
+**`estimate_building_height(buildings, raster)`**
+
+This function extracts the mean elevation of the raster cells within each polygon. In a normalized DSM (where ground elevation has already been subtracted), this value is building height directly. In a raw DSM, it represents absolute rooftop elevation — useful for differencing against a pre-snow scan to derive snow depth. No tunable parameters are required.
+
+```{r height}
+df <- estimate_building_height(valid_polys, r_filled)
+
+knitr::kable(
+  head(df, 10),
+  digits  = 2,
+  caption = "Estimated mean rooftop elevation for the first 10 buildings (meters)"
+)
+```
+
+---
+
+## Step 6b — Roof Slope and Aspect via RANSAC
+
+**`roof_slope_RANSAC(raster, buildings, n_iter, thresh, min_inliers)`**
+
+Roof slope and orientation (aspect) are key determinants of snow retention — a steep south-facing roof sheds snow quickly, while a shallow north-facing roof may accumulate loads several times greater. This function fits a plane to the raster elevation values within each polygon using RANSAC (Random Sample Consensus), a robust estimation method that tolerates outlier pixels caused by dormers, vents, parapets, and sensor noise.
+
+For each building, the algorithm randomly samples 3-point subsets, fits a plane, and counts how many of the remaining pixels (inliers) fall within a residual threshold. The plane with the most inliers wins. A stability metric — the spread of slope values across the top 5% of candidate fits — is also returned to flag geometrically ambiguous or noisy roofs.
+
+**`n_iter`** (default `500`): Number of random plane candidates evaluated. More iterations improve robustness at the cost of computation time. For large datasets `200` is often sufficient; for noisy or complex roofs, `1000` or more may help.
+
+**`thresh`** (default `0.1`): Residual distance in elevation units within which a pixel counts as an inlier. Tighten this for high-quality, dense LiDAR where you expect a clean planar surface. Loosen it for coarser or noisier data where pixel scatter is inherently higher.
+
+**`min_inliers`** (default `10`): Minimum inlier pixels required to accept a plane fit. For small buildings with few raster cells, lower this value to avoid discarding valid detections. For large buildings, raising it ensures the fitted plane is well-supported by data.
+
+**Interpreting `slope_spread`:** A low value (near 0) means the top candidate planes agreed closely on slope — the roof is likely a clean, simple plane. A high value suggests complex geometry or noisy data; treat that building's slope estimate with added caution.
+
+```{r ransac}
+buildings_sv <- terra::vect(valid_polys)
+
+if (!"building_id" %in% names(buildings_sv)) {
+  buildings_sv$building_id <- seq_len(nrow(buildings_sv))
+}
+
+ransac_result <- roof_slope_RANSAC(
+  raster      = r_filled,
+  buildings   = buildings_sv,
+  n_iter      = 500L,
+  thresh      = 0.1,
+  min_inliers = 10L,
+  quiet       = TRUE
+)
+
+knitr::kable(
+  head(ransac_result$summary_table, 10),
+  digits  = 2,
+  caption = "Roof slope and aspect estimates for the first 10 buildings"
+)
+```
+
+---
+
+## What's Next?
+
+With per-building height, slope, and aspect values in hand, the natural next steps are:
+
+- **Snow load estimation** — difference two DSMs (pre- and post-snowfall) within each validated polygon to derive snow depth, then combine with slope to estimate structural load
+- **Spatial aggregation** — summarize risk metrics by neighborhood, building type, or construction era
+- **Validation** — compare derived slope values against as-built drawings or field measurements to quantify method accuracy
+
+All outputs are standard R objects — `sf` data frames and `terra` rasters — and can be written to disk with `sf::st_write()` and `terra::writeRaster()` respectively.
