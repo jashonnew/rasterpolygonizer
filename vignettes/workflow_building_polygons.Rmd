@@ -143,6 +143,8 @@ ggplot() +
   scale_fill_viridis_c(na.value = "transparent") +
   theme_minimal()
 
+df <- estimate_building_height(valid_polys, r_filled)
+
 ```
 
 
