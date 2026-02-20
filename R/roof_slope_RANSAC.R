@@ -199,7 +199,7 @@ roof_slope_RANSAC <- function(raster,
         slope_deg           = x$slope_deg,
         aspect_deg          = x$aspect_deg,
         n_inliers           = x$n_inliers,
-        slope_spread        = x$slope_spread,
+        slope_range        = x$slope_spread,
         top_5_percent_count = x$top5_count,
         stringsAsFactors = FALSE
       )
