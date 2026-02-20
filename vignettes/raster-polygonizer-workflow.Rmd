@@ -45,12 +45,12 @@ The six functions in this package form a linear pipeline. Each step produces out
 
 | Step | Function | Purpose |
 |:----:|----------|---------|
-| 1 | `fill_ground_raster()` | Fill voids and smooth the elevation surface |
-| 2 | `extract_building_edges_to_polygons()` | Detect elevation edges and close them into candidate polygons |
-| 3 | `clean_building_polygons()` | Shrink, simplify, and filter polygons by area |
-| 4 | `filter_by_ground_truth()` | Validate detections against a reference footprint layer |
-| 5 | `remove_invalid_polys()` | Drop polygons with insufficient raster coverage |
-| 6a | `estimate_building_height()` | Extract mean rooftop elevation per polygon |
+| 1 | `fill_ground_raster()` | Fill voids using clustering-based ground estimation |
+| 2 | `extract_building_edges_to_polygons()` | Detect edges via Sobel gradients and close them morphologically |
+| 3 | `clean_building_polygons()` | Polygonize enclosed interiors, then shrink, simplify, and filter by area |
+| 4 | `filter_by_ground_truth()` | Retain candidates with sufficient containment within reference footprints |
+| 5 | `remove_invalid_polys()` | Remove ground-contaminated and nested polygons |
+| 6a | `estimate_building_height()` | Estimate height relative to surrounding ground elevation |
 | 6b | `roof_slope_RANSAC()` | Fit robust planes and derive slope and aspect per roof |
 
 Steps 6a and 6b are independent characterization steps — run either or both depending on your analysis goals.
@@ -78,7 +78,7 @@ The sample dataset covers a small area of Fairbanks, Alaska. `r` is a LiDAR-deri
 
 ## A Shared Plot Theme
 
-To keep figures consistent throughout the vignette, we define a shared ggplot theme and color scale built around earth tones — the natural palette of terrain and built surfaces in LiDAR data.
+We define a shared ggplot theme using a warm earth-tone document background, and a blue-to-gold raster fill palette. Blue and gold sit across from each other on the color wheel — the cool-to-warm contrast gives elevation data strong visual pop against the neutral document background while remaining readable in print.
 
 ```{r theme}
 theme_rp <- function() {
@@ -96,9 +96,10 @@ theme_rp <- function() {
     )
 }
 
+# Blue-to-gold: complementary to the warm document background
 scale_fill_rp <- function(...) {
   scale_fill_gradientn(
-    colors = c("#4a3728", "#7a5c3e", "#b08a5a", "#d4b483", "#e8d5a3", "#f0e8c8"),
+    colors = c("#1a3a5c", "#1d6fa4", "#4ba3c7", "#a8d5e2", "#f5e6a3", "#e8b84b", "#c47c0f"),
     ...
   )
 }
@@ -108,9 +109,13 @@ scale_fill_rp <- function(...) {
 
 ## Step 1 — Fill the Ground Raster
 
-**`fill_ground_raster(raster)`**
+**`fill_ground_raster(raster, w = 15)`**
 
-LiDAR point clouds frequently contain data voids — areas where the sensor received no usable return, often under dense vegetation, at steep angles, or near flight strip edges. Left unfilled, these holes create discontinuities that interrupt edge detection downstream. This function applies spatial interpolation to fill NA cells and produce a continuous elevation surface. No tunable parameters are exposed; run it as-is before any other step.
+LiDAR point clouds frequently contain data voids where the sensor received no usable return, typically under dense vegetation, at steep angles, or near flight strip edges. Left unfilled, these holes disrupt the gradient computation in Step 2.
+
+`fill_ground_raster()` addresses this with a focal neighborhood approach designed specifically for elevation data. For each NA cell, it examines all valid neighbors within a `w × w` window and uses k-means clustering (up to 3 clusters) to separate them by elevation. It then returns the median of the *lowest* cluster — the best available estimate of ground level at that location. This means the fill preferentially recovers ground-level values rather than being pulled upward by nearby rooftops or vegetation, which is exactly what downstream processing needs.
+
+**`w`** (default `15`): The focal window size in pixels. Larger windows can fill bigger voids but may pull values from more distant and less representative neighbors.
 
 ```{r fill}
 r_df_raw <- as.data.frame(r, xy = TRUE, na.rm = TRUE)
@@ -138,7 +143,7 @@ ggplot(r_df_filled) +
   theme_rp() +
   labs(
     title    = "Filled Ground Raster",
-    subtitle = "Voids have been interpolated — the surface is now continuous"
+    subtitle = "Voids filled using clustering-based ground estimation"
   )
 ```
 
@@ -146,11 +151,16 @@ ggplot(r_df_filled) +
 
 ## Step 2 — Extract Building Edge Polygons
 
-**`extract_building_edges_to_polygons(raster, thr_prob)`**
+**`extract_building_edges_to_polygons(raster, smooth_w, thr_prob, morph_w)`**
 
-Buildings appear in a DSM as abrupt vertical discontinuities — places where elevation jumps sharply from ground level to rooftop height. This function detects those elevation gradients, traces their outlines, and assembles the resulting edge pixels into closed polygons.
+Buildings appear in a DSM as abrupt vertical discontinuities — sharp jumps in elevation from ground to rooftop. This function detects those discontinuities through a four-stage image processing pipeline:
 
-**Key parameter — `thr_prob`** (default `0.8`): The probability threshold controlling which pixels are classified as building edges. Higher values are more conservative, retaining only the sharpest and most obvious edges. For scenes with many small or tightly-packed buildings, a higher `thr_prob` reduces false detections from vegetation and clutter. For sparse or large buildings where you want more complete outlines, a lower value recovers more edge detail.
+1. **Smoothing** — a mean focal filter reduces sensor noise before gradient computation
+2. **Sobel gradient** — horizontal (Gx) and vertical (Gy) Sobel kernels are applied to the smoothed raster, and their combined magnitude (`sqrt(Gx² + Gy²)`) captures edge strength in all directions
+3. **Thresholding** — pixels whose gradient magnitude exceeds the `thr_prob` quantile of all gradient values are classified as edges
+4. **Morphological closing** — a dilate-then-erode operation bridges small gaps in the detected edge lines, producing closed loops that surround building interiors
+
+**`thr_prob`** (default `0.70`): The quantile threshold applied to gradient magnitude. At `0.70`, the top 30% of gradient values are classified as edges. *Raising this value makes the detector more selective* — only the strongest gradients (sharpest elevation transitions) pass through, which helps in dense urban scenes with many small buildings where vegetation and clutter produce weaker false edges. Lowering it recovers subtler edges but increases noise.
 
 ```{r edges}
 edges <- extract_building_edges_to_polygons(r_filled, thr_prob = 0.8)
@@ -162,13 +172,17 @@ edges <- extract_building_edges_to_polygons(r_filled, thr_prob = 0.8)
 
 **`clean_building_polygons(closed_edges, shrink_dist, simplify_tol, min_area, max_area)`**
 
-Raw edge polygons tend to be jagged and oversized — edge detection traces the outer perimeter of the gradient band, which sits just outside the true rooftop boundary. This function applies three successive cleaning operations.
+The closed edge loops from Step 2 define the *perimeters* of buildings, but what we actually need are filled polygon footprints. The key insight in this function is that the edge loops enclose interior regions — so the function first *inverts* the edge raster and polygonizes the enclosed FALSE (interior) regions. Those interiors are the building footprints.
 
-**`shrink_dist`** (negative value, e.g. `-0.5`): Pulls polygon edges inward by this distance in map units, compensating for the outward bias of edge detection. Use a more negative value when your raster has coarser resolution or when building walls are thick relative to cell size.
+After polygonization, three cleaning operations are applied in sequence:
 
-**`simplify_tol`** (e.g. `2.5`): Douglas-Peucker simplification tolerance. Smooths jagged outlines without losing the overall footprint shape. Larger values produce simpler, blockier polygons.
+**`shrink_dist`** (default `-0.5`, map units): A negative buffer shrinks each polygon inward. This is necessary because the edge band detected in Step 2 sits slightly outside the true rooftop boundary — the shrink compensates for that outward bias. Use a more negative value for coarser-resolution rasters where the edge band is wider.
 
-**`min_area` / `max_area`**: Polygons outside this size range are dropped. Set `min_area` to exclude noise patches and small vegetation clumps; set `max_area` to exclude large merged regions unlikely to represent individual buildings.
+**`simplify_tol`** (default `0.5`, map units): Douglas-Peucker simplification removes redundant vertices and smooths jagged outlines without distorting the overall footprint shape. Larger values produce cleaner but blockier polygons.
+
+**`min_area` / `max_area`**: After exploding all multi-part geometries into individual polygons, those outside this size range are dropped. `min_area` removes noise patches and the small gaps between edge pixels; `max_area` removes the large background region (the inverted raster always produces one polygon covering everything *outside* the buildings, which is discarded here).
+
+The function also computes and attaches `area`, `perimeter`, `perim_area_ratio`, and `vertices` columns to the output for downstream use.
 
 ```{r clean}
 buildings_sf <- clean_building_polygons(
@@ -184,13 +198,13 @@ names(r_df)[3] <- "value"
 
 ggplot() +
   geom_raster(data = r_df, aes(x = x, y = y, fill = value)) +
-  geom_sf(data = buildings_sf, fill = NA, color = "#8b2500", linewidth = 0.6) +
+  geom_sf(data = buildings_sf, fill = NA, color = "#c47c0f", linewidth = 0.6) +
   coord_sf() +
   scale_fill_rp(name = "Elev. (m)") +
   theme_rp() +
   labs(
     title    = "Candidate Building Polygons",
-    subtitle = "Cleaned and size-filtered — outlines shown over the filled raster"
+    subtitle = "Interior regions enclosed by edge loops, shrunk and simplified"
   )
 ```
 
@@ -198,11 +212,17 @@ ggplot() +
 
 ## Step 4 — Filter by Ground Truth
 
-**`filter_by_ground_truth(buildings, reference, threshold)`**
+**`filter_by_ground_truth(candidates, truth, threshold = 0.75)`**
 
-Not every candidate polygon corresponds to a real building — some may be vegetation, elevated infrastructure, or detection artifacts. When a reference layer of known building footprints is available (e.g., from municipal records or manual digitizing), this function uses spatial overlap to keep only the detections that match a reference polygon. If no reference layer is available, skip this step.
+Not every candidate polygon corresponds to a real building — some will be vegetation clumps, elevated infrastructure, or detection artifacts. When a reference layer of known building footprints is available (e.g., from municipal GIS records or manual digitizing), this function uses spatial overlap to filter out false detections.
 
-**Key parameter — `threshold`** (default `0.5`): The minimum fractional overlap (intersection-over-union) required to accept a candidate as a true detection. A value of `0.5` requires at least 50% area overlap with a reference polygon. Lower this to recover partial matches; raise it to require tighter geometric agreement.
+For each candidate polygon, the function computes a **containment ratio**: the area of intersection with any overlapping reference polygon divided by the total area of the candidate. If this ratio meets or exceeds `threshold`, the candidate is kept. A ratio of `0.75` means that at least 75% of the detected polygon's area must fall inside a reference footprint.
+
+Note that this is a one-sided measure — it evaluates how well the *candidate* is contained within the reference, not the reverse. This means a smaller detected polygon that sits neatly inside a large reference footprint will pass, while a candidate that extends significantly beyond the reference boundary will be rejected.
+
+> **No reference layer available?** Skip this step and proceed directly to Step 5. The function is optional in the pipeline.
+
+**`threshold`** (default `0.75`): Lower values recover more partial matches at the cost of accepting more false detections; higher values demand tighter spatial agreement with the reference.
 
 ```{r filter}
 # Assign a CRS to align all layers (UTM Zone 6N for Fairbanks, AK)
@@ -220,13 +240,13 @@ filtered <- filter_by_ground_truth(
 
 ggplot() +
   geom_raster(data = r_df, aes(x = x, y = y, fill = value)) +
-  geom_sf(data = filtered, fill = NA, color = "#8b2500", linewidth = 0.6) +
+  geom_sf(data = filtered, fill = NA, color = "#c47c0f", linewidth = 0.6) +
   coord_sf() +
   scale_fill_rp(name = "Elev. (m)") +
   theme_rp() +
   labs(
     title    = "After Ground Truth Filtering",
-    subtitle = "Only polygons with sufficient overlap with reference footprints are retained"
+    subtitle = "Candidates retained where ≥50% of their area overlaps a reference footprint"
   )
 ```
 
@@ -234,22 +254,30 @@ ggplot() +
 
 ## Step 5 — Remove Invalid Polygons
 
-**`remove_invalid_polys(buildings, raster)`**
+**`remove_invalid_polys(polys, raster, buffer_dist, ground_tol, remove_nested)`**
 
-Even after size and overlap filtering, some polygons may fall in areas of the raster too sparse to support reliable analysis — at flight strip edges, or where interpolation could not produce a reliable surface. This function checks raster coverage within each polygon and removes those that fall below an acceptable data density. It is a final data quality gate, requires no parameters, and should always be run before the characterization steps.
+This function performs two distinct cleanup passes in a deliberate order.
+
+**Pass 1 — Ground contamination check:** For each polygon, the function extracts the minimum elevation value inside the polygon and the minimum elevation value in a surrounding buffer ring of width `buffer_dist`. If the absolute difference between these two minima is less than `ground_tol`, the polygon is flagged as ground-contaminated and removed. The logic is straightforward: a polygon sitting on an actual rooftop should have notably higher minimum elevations than the ground immediately surrounding it. If the inside and outside minima are nearly the same, the polygon is likely sitting on flat ground rather than a raised surface.
+
+**Pass 2 — Nested polygon removal:** After ground filtering, any polygon that is fully spatially contained within another polygon is removed. This handles cases where the edge detection and polygonization steps produce concentric outlines around the same building. Ground-contaminated polygons are removed *before* this step intentionally — otherwise, a large invalid polygon could cause valid smaller polygons nested within it to be incorrectly discarded.
+
+**`ground_tol`** (default `3`, map units): The minimum elevation difference required between inside and outside minima to consider a polygon a valid raised structure. Increase this in flat terrain where small elevation differences are common noise; decrease it where rooftop-to-ground relief is reliably large.
+
+**`buffer_dist`** (default `5`, map units): Width of the exterior ring used for the ground comparison. Should be wide enough to capture true ground-level values beyond the building footprint, but not so wide that it picks up adjacent buildings.
 
 ```{r remove-invalid}
 valid_polys <- remove_invalid_polys(filtered, r_filled)
 
 ggplot() +
   geom_raster(data = r_df, aes(x = x, y = y, fill = value)) +
-  geom_sf(data = valid_polys, fill = NA, color = "#8b2500", linewidth = 0.6) +
+  geom_sf(data = valid_polys, fill = NA, color = "#c47c0f", linewidth = 0.6) +
   coord_sf() +
   scale_fill_rp(name = "Elev. (m)") +
   theme_rp() +
   labs(
     title    = "Validated Building Polygons",
-    subtitle = "Polygons with insufficient raster coverage have been removed"
+    subtitle = "Ground-contaminated and nested polygons removed"
   )
 ```
 
@@ -257,17 +285,25 @@ ggplot() +
 
 ## Step 6a — Estimate Building Height
 
-**`estimate_building_height(buildings, raster)`**
+**`estimate_building_height(polys, raster, buffer_dist, prob, clamp)`**
 
-This function extracts the mean elevation of the raster cells within each polygon. In a normalized DSM (where ground elevation has already been subtracted), this value is building height directly. In a raw DSM, it represents absolute rooftop elevation — useful for differencing against a pre-snow scan to derive snow depth. No tunable parameters are required.
+Rather than simply averaging elevation values inside a polygon (which would give absolute rooftop elevation, not building height), this function estimates height *relative to the surrounding ground*. For each polygon it computes a low percentile of raster values inside the polygon (`inside_q`) and the same percentile in a surrounding buffer ring (`outside_q`). Height is then `inside_q - outside_q`.
+
+Using a low percentile (default `prob = 0.02`, the 2nd percentile) rather than the mean makes the estimate robust to rooftop features like parapets, HVAC equipment, and other protrusions that would inflate a mean-based estimate. The same percentile is used for both inside and outside values for consistency. If `clamp = TRUE`, negative heights (which can arise from noisy data or polygon edge effects) are set to zero.
+
+The function returns the input polygon layer with three new columns: `inside_q`, `outside_q`, and `height`.
+
+**`buffer_dist`** (default `5`, map units): Width of the exterior ring used to sample surrounding ground elevation. Should extend far enough to clear the building footprint and capture true ground values.
+
+**`prob`** (default `0.02`): Quantile used for both inside and outside elevation estimates. Lower values are more robust to high-elevation outliers but may be sensitive to data voids if coverage is thin.
 
 ```{r height}
 df <- estimate_building_height(valid_polys, r_filled)
 
 knitr::kable(
-  head(df, 10),
+  head(df[, c("building_id", "inside_q", "outside_q", "height")], 10),
   digits  = 2,
-  caption = "Estimated mean rooftop elevation for the first 10 buildings (meters)"
+  caption = "Estimated building height for the first 10 polygons. Height is the difference between the 2nd-percentile rooftop elevation and the 2nd-percentile ground elevation in the surrounding buffer ring."
 )
 ```
 
@@ -277,17 +313,20 @@ knitr::kable(
 
 **`roof_slope_RANSAC(raster, buildings, n_iter, thresh, min_inliers)`**
 
-Roof slope and orientation (aspect) are key determinants of snow retention — a steep south-facing roof sheds snow quickly, while a shallow north-facing roof may accumulate loads several times greater. This function fits a plane to the raster elevation values within each polygon using RANSAC (Random Sample Consensus), a robust estimation method that tolerates outlier pixels caused by dormers, vents, parapets, and sensor noise.
+Roof slope and orientation (aspect) are key determinants of snow retention — a steep south-facing roof sheds snow quickly, while a shallow north-facing roof may accumulate loads several times greater. This function fits a plane to the raster elevation values within each polygon using RANSAC (Random Sample Consensus), a robust estimation method that explicitly tolerates outlier pixels caused by dormers, vents, parapets, and sensor noise.
 
-For each building, the algorithm randomly samples 3-point subsets, fits a plane, and counts how many of the remaining pixels (inliers) fall within a residual threshold. The plane with the most inliers wins. A stability metric — the spread of slope values across the top 5% of candidate fits — is also returned to flag geometrically ambiguous or noisy roofs.
+Each RANSAC iteration randomly draws 3 pixels from the building's raster footprint, fits a plane through them via linear regression (`z ~ x + y`), and counts how many of the *remaining* pixels (inliers) have residuals below `thresh`. After `n_iter` iterations, the plane that maximized inlier count is selected and used to compute final slope and aspect:
 
-**`n_iter`** (default `500`): Number of random plane candidates evaluated. More iterations improve robustness at the cost of computation time. For large datasets `200` is often sufficient; for noisy or complex roofs, `1000` or more may help.
+- **Slope** = `atan(sqrt(a² + b²)) × 180/π`, where `a` and `b` are the x and y plane coefficients
+- **Aspect** = `(atan2(-a, -b) × 180/π) %% 360`, giving compass bearing of the downslope direction
 
-**`thresh`** (default `0.1`): Residual distance in elevation units within which a pixel counts as an inlier. Tighten this for high-quality, dense LiDAR where you expect a clean planar surface. Loosen it for coarser or noisier data where pixel scatter is inherently higher.
+A **stability metric** (`slope_range`) is also returned: the 97.5th minus 2.5th percentile of slope estimates across the top 5% of candidate fits, ranked by inlier count. A low value means those top candidates agreed closely — the roof surface is planar and the fit is reliable. A high value suggests the roof geometry is complex or the data is noisy.
 
-**`min_inliers`** (default `10`): Minimum inlier pixels required to accept a plane fit. For small buildings with few raster cells, lower this value to avoid discarding valid detections. For large buildings, raising it ensures the fitted plane is well-supported by data.
+**`thresh`** (default `0.1`, elevation units): The residual distance within which a pixel is counted as an inlier. Tighten this for high-density LiDAR where rooftop surfaces are reliably smooth. Loosen it for coarser data where pixel-to-plane scatter is inherently larger. *For scenes with many small buildings, individual polygons contain fewer pixels, so each pixel carries more weight — a tighter `thresh` here helps ensure the fitted plane is genuinely representative of the roof surface rather than a statistical accident.*
 
-**Interpreting `slope_range`:** A low value (near 0) means the top candidate planes agreed closely on slope — the roof is likely a clean, simple plane. A high value suggests complex geometry or noisy data; treat that building's slope estimate with added caution.
+**`min_inliers`** (default `10`): Minimum pixels required to accept any candidate plane. For small buildings with few raster cells, lower this to avoid discarding valid fits. For large buildings, raising it ensures the plane is well-supported across the full footprint.
+
+**`n_iter`** (default `500`): Number of random 3-point samples evaluated. More iterations improve the chance of finding the globally best plane. `200` is often sufficient for clean data; `1000` or more is warranted for noisy or geometrically complex roofs.
 
 ```{r ransac}
 buildings_sv <- terra::vect(valid_polys)
@@ -308,7 +347,7 @@ ransac_result <- roof_slope_RANSAC(
 knitr::kable(
   head(ransac_result$summary_table, 10),
   digits  = 2,
-  caption = "Roof slope and aspect estimates for the first 10 buildings"
+  caption = "Roof slope and aspect estimates. slope_range is the spread of slope values across the top 5% of RANSAC candidate fits — lower values indicate a more stable, reliable plane fit."
 )
 ```
 
