@@ -155,7 +155,7 @@ testthat::test_that("stability metric small for perfect plane", {
     quiet = TRUE
   )
 
-  spread <- result$summary_table$slope_spread
+  spread <- result$summary_table$slope_range
 
   testthat::expect_true(is.na(spread) || spread < 1e-3)
 })
