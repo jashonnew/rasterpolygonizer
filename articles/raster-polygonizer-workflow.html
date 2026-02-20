@@ -128,32 +128,34 @@ produces output consumed by the next:</p>
 <tr class="odd">
 <td align="center">1</td>
 <td><code><a href="../reference/fill_ground_raster.html">fill_ground_raster()</a></code></td>
-<td>Fill voids and smooth the elevation surface</td>
+<td>Fill voids using clustering-based ground estimation</td>
 </tr>
 <tr class="even">
 <td align="center">2</td>
 <td><code><a href="../reference/extract_building_edges_to_polygons.html">extract_building_edges_to_polygons()</a></code></td>
-<td>Detect elevation edges and close them into candidate polygons</td>
+<td>Detect edges via Sobel gradients and close them morphologically</td>
 </tr>
 <tr class="odd">
 <td align="center">3</td>
 <td><code><a href="../reference/clean_building_polygons.html">clean_building_polygons()</a></code></td>
-<td>Shrink, simplify, and filter polygons by area</td>
+<td>Polygonize enclosed interiors, then shrink, simplify, and filter by
+area</td>
 </tr>
 <tr class="even">
 <td align="center">4</td>
 <td><code><a href="../reference/filter_by_ground_truth.html">filter_by_ground_truth()</a></code></td>
-<td>Validate detections against a reference footprint layer</td>
+<td>Retain candidates with sufficient containment within reference
+footprints</td>
 </tr>
 <tr class="odd">
 <td align="center">5</td>
 <td><code><a href="../reference/remove_invalid_polys.html">remove_invalid_polys()</a></code></td>
-<td>Drop polygons with insufficient raster coverage</td>
+<td>Remove ground-contaminated and nested polygons</td>
 </tr>
 <tr class="even">
 <td align="center">6a</td>
 <td><code><a href="../reference/estimate_building_height.html">estimate_building_height()</a></code></td>
-<td>Extract mean rooftop elevation per polygon</td>
+<td>Estimate height relative to surrounding ground elevation</td>
 </tr>
 <tr class="odd">
 <td align="center">6b</td>
@@ -191,9 +193,11 @@ validation reference.</p>
 <div class="section level3">
 <h3 id="a-shared-plot-theme">A Shared Plot Theme<a class="anchor" aria-label="anchor" href="#a-shared-plot-theme"></a>
 </h3>
-<p>To keep figures consistent throughout the vignette, we define a
-shared ggplot theme and color scale built around earth tones — the
-natural palette of terrain and built surfaces in LiDAR data.</p>
+<p>We define a shared ggplot theme using a warm earth-tone document
+background, and a blue-to-gold raster fill palette. Blue and gold sit
+across from each other on the color wheel — the cool-to-warm contrast
+gives elevation data strong visual pop against the neutral document
+background while remaining readable in print.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">theme_rp</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">11</span><span class="op">)</span> <span class="op">+</span></span>
@@ -210,9 +214,10 @@ natural palette of terrain and built surfaces in LiDAR data.</p>
 <span>    <span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
+<span><span class="co"># Blue-to-gold: complementary to the warm document background</span></span>
 <span><span class="va">scale_fill_rp</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_gradient.html" class="external-link">scale_fill_gradientn</a></span><span class="op">(</span></span>
-<span>    colors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#4a3728"</span>, <span class="st">"#7a5c3e"</span>, <span class="st">"#b08a5a"</span>, <span class="st">"#d4b483"</span>, <span class="st">"#e8d5a3"</span>, <span class="st">"#f0e8c8"</span><span class="op">)</span>,</span>
+<span>    colors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#1a3a5c"</span>, <span class="st">"#1d6fa4"</span>, <span class="st">"#4ba3c7"</span>, <span class="st">"#a8d5e2"</span>, <span class="st">"#f5e6a3"</span>, <span class="st">"#e8b84b"</span>, <span class="st">"#c47c0f"</span><span class="op">)</span>,</span>
 <span>    <span class="va">...</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
@@ -221,14 +226,23 @@ natural palette of terrain and built surfaces in LiDAR data.</p>
 <div class="section level3">
 <h3 id="step-1-fill-the-ground-raster">Step 1 — Fill the Ground Raster<a class="anchor" aria-label="anchor" href="#step-1-fill-the-ground-raster"></a>
 </h3>
-<p><strong><code>fill_ground_raster(raster)</code></strong></p>
-<p>LiDAR point clouds frequently contain data voids — areas where the
-sensor received no usable return, often under dense vegetation, at steep
-angles, or near flight strip edges. Left unfilled, these holes create
-discontinuities that interrupt edge detection downstream. This function
-applies spatial interpolation to fill NA cells and produce a continuous
-elevation surface. No tunable parameters are exposed; run it as-is
-before any other step.</p>
+<p><strong><code>fill_ground_raster(raster, w = 15)</code></strong></p>
+<p>LiDAR point clouds frequently contain data voids where the sensor
+received no usable return, typically under dense vegetation, at steep
+angles, or near flight strip edges. Left unfilled, these holes disrupt
+the gradient computation in Step 2.</p>
+<p><code><a href="../reference/fill_ground_raster.html">fill_ground_raster()</a></code> addresses this with a focal
+neighborhood approach designed specifically for elevation data. For each
+NA cell, it examines all valid neighbors within a <code>w × w</code>
+window and uses k-means clustering (up to 3 clusters) to separate them
+by elevation. It then returns the median of the <em>lowest</em> cluster
+— the best available estimate of ground level at that location. This
+means the fill preferentially recovers ground-level values rather than
+being pulled upward by nearby rooftops or vegetation, which is exactly
+what downstream processing needs.</p>
+<p><strong><code>w</code></strong> (default <code>15</code>): The focal
+window size in pixels. Larger windows can fill bigger voids but may pull
+values from more distant and less representative neighbors.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r_df_raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rspatial.github.io/terra/reference/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">r</span>, xy <span class="op">=</span> <span class="cn">TRUE</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rspatial.github.io/terra/reference/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">r_df_raw</span><span class="op">)</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"value"</span></span>
@@ -256,7 +270,7 @@ before any other step.</p>
 <span>  <span class="fu">theme_rp</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span></span>
 <span>    title    <span class="op">=</span> <span class="st">"Filled Ground Raster"</span>,</span>
-<span>    subtitle <span class="op">=</span> <span class="st">"Voids have been interpolated — the surface is now continuous"</span></span>
+<span>    subtitle <span class="op">=</span> <span class="st">"Voids filled using clustering-based ground estimation"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 <p><img src="raster-polygonizer-workflow_files/figure-html/fill-2.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
 <hr>
@@ -264,19 +278,36 @@ before any other step.</p>
 <div class="section level3">
 <h3 id="step-2-extract-building-edge-polygons">Step 2 — Extract Building Edge Polygons<a class="anchor" aria-label="anchor" href="#step-2-extract-building-edge-polygons"></a>
 </h3>
-<p><strong><code>extract_building_edges_to_polygons(raster, thr_prob)</code></strong></p>
-<p>Buildings appear in a DSM as abrupt vertical discontinuities — places
-where elevation jumps sharply from ground level to rooftop height. This
-function detects those elevation gradients, traces their outlines, and
-assembles the resulting edge pixels into closed polygons.</p>
-<p><strong>Key parameter — <code>thr_prob</code></strong> (default
-<code>0.8</code>): The probability threshold controlling which pixels
-are classified as building edges. Higher values are more conservative,
-retaining only the sharpest and most obvious edges. For scenes with many
-small or tightly-packed buildings, a higher <code>thr_prob</code>
-reduces false detections from vegetation and clutter. For sparse or
-large buildings where you want more complete outlines, a lower value
-recovers more edge detail.</p>
+<p><strong><code>extract_building_edges_to_polygons(raster, smooth_w, thr_prob, morph_w)</code></strong></p>
+<p>Buildings appear in a DSM as abrupt vertical discontinuities — sharp
+jumps in elevation from ground to rooftop. This function detects those
+discontinuities through a four-stage image processing pipeline:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Smoothing</strong> — a mean focal filter reduces sensor
+noise before gradient computation</li>
+<li>
+<strong>Sobel gradient</strong> — horizontal (Gx) and vertical (Gy)
+Sobel kernels are applied to the smoothed raster, and their combined
+magnitude (<code>sqrt(Gx² + Gy²)</code>) captures edge strength in all
+directions</li>
+<li>
+<strong>Thresholding</strong> — pixels whose gradient magnitude
+exceeds the <code>thr_prob</code> quantile of all gradient values are
+classified as edges</li>
+<li>
+<strong>Morphological closing</strong> — a dilate-then-erode
+operation bridges small gaps in the detected edge lines, producing
+closed loops that surround building interiors</li>
+</ol>
+<p><strong><code>thr_prob</code></strong> (default <code>0.70</code>):
+The quantile threshold applied to gradient magnitude. At
+<code>0.70</code>, the top 30% of gradient values are classified as
+edges. <em>Raising this value makes the detector more selective</em> —
+only the strongest gradients (sharpest elevation transitions) pass
+through, which helps in dense urban scenes with many small buildings
+where vegetation and clutter produce weaker false edges. Lowering it
+recovers subtler edges but increases noise.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">edges</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_building_edges_to_polygons.html">extract_building_edges_to_polygons</a></span><span class="op">(</span><span class="va">r_filled</span>, thr_prob <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span></span></code></pre></div>
 <hr>
@@ -285,24 +316,34 @@ recovers more edge detail.</p>
 <h3 id="step-3-clean-building-polygons">Step 3 — Clean Building Polygons<a class="anchor" aria-label="anchor" href="#step-3-clean-building-polygons"></a>
 </h3>
 <p><strong><code>clean_building_polygons(closed_edges, shrink_dist, simplify_tol, min_area, max_area)</code></strong></p>
-<p>Raw edge polygons tend to be jagged and oversized — edge detection
-traces the outer perimeter of the gradient band, which sits just outside
-the true rooftop boundary. This function applies three successive
-cleaning operations.</p>
-<p><strong><code>shrink_dist</code></strong> (negative value,
-e.g. <code>-0.5</code>): Pulls polygon edges inward by this distance in
-map units, compensating for the outward bias of edge detection. Use a
-more negative value when your raster has coarser resolution or when
-building walls are thick relative to cell size.</p>
-<p><strong><code>simplify_tol</code></strong> (e.g. <code>2.5</code>):
-Douglas-Peucker simplification tolerance. Smooths jagged outlines
-without losing the overall footprint shape. Larger values produce
-simpler, blockier polygons.</p>
-<p><strong><code>min_area</code> / <code>max_area</code></strong>:
-Polygons outside this size range are dropped. Set <code>min_area</code>
-to exclude noise patches and small vegetation clumps; set
-<code>max_area</code> to exclude large merged regions unlikely to
-represent individual buildings.</p>
+<p>The closed edge loops from Step 2 define the <em>perimeters</em> of
+buildings, but what we actually need are filled polygon footprints. The
+key insight in this function is that the edge loops enclose interior
+regions — so the function first <em>inverts</em> the edge raster and
+polygonizes the enclosed FALSE (interior) regions. Those interiors are
+the building footprints.</p>
+<p>After polygonization, three cleaning operations are applied in
+sequence:</p>
+<p><strong><code>shrink_dist</code></strong> (default <code>-0.5</code>,
+map units): A negative buffer shrinks each polygon inward. This is
+necessary because the edge band detected in Step 2 sits slightly outside
+the true rooftop boundary — the shrink compensates for that outward
+bias. Use a more negative value for coarser-resolution rasters where the
+edge band is wider.</p>
+<p><strong><code>simplify_tol</code></strong> (default <code>0.5</code>,
+map units): Douglas-Peucker simplification removes redundant vertices
+and smooths jagged outlines without distorting the overall footprint
+shape. Larger values produce cleaner but blockier polygons.</p>
+<p><strong><code>min_area</code> / <code>max_area</code></strong>: After
+exploding all multi-part geometries into individual polygons, those
+outside this size range are dropped. <code>min_area</code> removes noise
+patches and the small gaps between edge pixels; <code>max_area</code>
+removes the large background region (the inverted raster always produces
+one polygon covering everything <em>outside</em> the buildings, which is
+discarded here).</p>
+<p>The function also computes and attaches <code>area</code>,
+<code>perimeter</code>, <code>perim_area_ratio</code>, and
+<code>vertices</code> columns to the output for downstream use.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">buildings_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/clean_building_polygons.html">clean_building_polygons</a></span><span class="op">(</span></span>
 <span>  closed_edges <span class="op">=</span> <span class="va">edges</span><span class="op">$</span><span class="va">closed_edges</span>,</span>
@@ -317,13 +358,13 @@ represent individual buildings.</p>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_raster</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">r_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">y</span>, fill <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">buildings_sf</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#8b2500"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">buildings_sf</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">coord_sf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_fill_rp</span><span class="op">(</span>name <span class="op">=</span> <span class="st">"Elev. (m)"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">theme_rp</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span></span>
 <span>    title    <span class="op">=</span> <span class="st">"Candidate Building Polygons"</span>,</span>
-<span>    subtitle <span class="op">=</span> <span class="st">"Cleaned and size-filtered — outlines shown over the filled raster"</span></span>
+<span>    subtitle <span class="op">=</span> <span class="st">"Interior regions enclosed by edge loops, shrunk and simplified"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 <p><img src="raster-polygonizer-workflow_files/figure-html/clean-1.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
 <hr>
@@ -331,19 +372,33 @@ represent individual buildings.</p>
 <div class="section level3">
 <h3 id="step-4-filter-by-ground-truth">Step 4 — Filter by Ground Truth<a class="anchor" aria-label="anchor" href="#step-4-filter-by-ground-truth"></a>
 </h3>
-<p><strong><code>filter_by_ground_truth(buildings, reference, threshold)</code></strong></p>
-<p>Not every candidate polygon corresponds to a real building — some may
-be vegetation, elevated infrastructure, or detection artifacts. When a
-reference layer of known building footprints is available (e.g., from
-municipal records or manual digitizing), this function uses spatial
-overlap to keep only the detections that match a reference polygon. If
-no reference layer is available, skip this step.</p>
-<p><strong>Key parameter — <code>threshold</code></strong> (default
-<code>0.5</code>): The minimum fractional overlap
-(intersection-over-union) required to accept a candidate as a true
-detection. A value of <code>0.5</code> requires at least 50% area
-overlap with a reference polygon. Lower this to recover partial matches;
-raise it to require tighter geometric agreement.</p>
+<p><strong><code>filter_by_ground_truth(candidates, truth, threshold = 0.75)</code></strong></p>
+<p>Not every candidate polygon corresponds to a real building — some
+will be vegetation clumps, elevated infrastructure, or detection
+artifacts. When a reference layer of known building footprints is
+available (e.g., from municipal GIS records or manual digitizing), this
+function uses spatial overlap to filter out false detections.</p>
+<p>For each candidate polygon, the function computes a
+<strong>containment ratio</strong>: the area of intersection with any
+overlapping reference polygon divided by the total area of the
+candidate. If this ratio meets or exceeds <code>threshold</code>, the
+candidate is kept. A ratio of <code>0.75</code> means that at least 75%
+of the detected polygon’s area must fall inside a reference
+footprint.</p>
+<p>Note that this is a one-sided measure — it evaluates how well the
+<em>candidate</em> is contained within the reference, not the reverse.
+This means a smaller detected polygon that sits neatly inside a large
+reference footprint will pass, while a candidate that extends
+significantly beyond the reference boundary will be rejected.</p>
+<blockquote>
+<p><strong>No reference layer available?</strong> Skip this step and
+proceed directly to Step 5. The function is optional in the
+pipeline.</p>
+</blockquote>
+<p><strong><code>threshold</code></strong> (default <code>0.75</code>):
+Lower values recover more partial matches at the cost of accepting more
+false detections; higher values demand tighter spatial agreement with
+the reference.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Assign a CRS to align all layers (UTM Zone 6N for Fairbanks, AK)</span></span>
 <span><span class="fu">terra</span><span class="fu">::</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/crs.html" class="external-link">crs</a></span><span class="op">(</span><span class="va">r</span><span class="op">)</span>        <span class="op">&lt;-</span> <span class="st">"EPSG:32606"</span></span>
@@ -360,13 +415,13 @@ raise it to require tighter geometric agreement.</p>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_raster</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">r_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">y</span>, fill <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">filtered</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#8b2500"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">filtered</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">coord_sf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_fill_rp</span><span class="op">(</span>name <span class="op">=</span> <span class="st">"Elev. (m)"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">theme_rp</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span></span>
 <span>    title    <span class="op">=</span> <span class="st">"After Ground Truth Filtering"</span>,</span>
-<span>    subtitle <span class="op">=</span> <span class="st">"Only polygons with sufficient overlap with reference footprints are retained"</span></span>
+<span>    subtitle <span class="op">=</span> <span class="st">"Candidates retained where ≥50% of their area overlaps a reference footprint"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 <p><img src="raster-polygonizer-workflow_files/figure-html/filter-1.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
 <hr>
@@ -374,26 +429,48 @@ raise it to require tighter geometric agreement.</p>
 <div class="section level3">
 <h3 id="step-5-remove-invalid-polygons">Step 5 — Remove Invalid Polygons<a class="anchor" aria-label="anchor" href="#step-5-remove-invalid-polygons"></a>
 </h3>
-<p><strong><code>remove_invalid_polys(buildings, raster)</code></strong></p>
-<p>Even after size and overlap filtering, some polygons may fall in
-areas of the raster too sparse to support reliable analysis — at flight
-strip edges, or where interpolation could not produce a reliable
-surface. This function checks raster coverage within each polygon and
-removes those that fall below an acceptable data density. It is a final
-data quality gate, requires no parameters, and should always be run
-before the characterization steps.</p>
+<p><strong><code>remove_invalid_polys(polys, raster, buffer_dist, ground_tol, remove_nested)</code></strong></p>
+<p>This function performs two distinct cleanup passes in a deliberate
+order.</p>
+<p><strong>Pass 1 — Ground contamination check:</strong> For each
+polygon, the function extracts the minimum elevation value inside the
+polygon and the minimum elevation value in a surrounding buffer ring of
+width <code>buffer_dist</code>. If the absolute difference between these
+two minima is less than <code>ground_tol</code>, the polygon is flagged
+as ground-contaminated and removed. The logic is straightforward: a
+polygon sitting on an actual rooftop should have notably higher minimum
+elevations than the ground immediately surrounding it. If the inside and
+outside minima are nearly the same, the polygon is likely sitting on
+flat ground rather than a raised surface.</p>
+<p><strong>Pass 2 — Nested polygon removal:</strong> After ground
+filtering, any polygon that is fully spatially contained within another
+polygon is removed. This handles cases where the edge detection and
+polygonization steps produce concentric outlines around the same
+building. Ground-contaminated polygons are removed <em>before</em> this
+step intentionally — otherwise, a large invalid polygon could cause
+valid smaller polygons nested within it to be incorrectly discarded.</p>
+<p><strong><code>ground_tol</code></strong> (default <code>3</code>, map
+units): The minimum elevation difference required between inside and
+outside minima to consider a polygon a valid raised structure. Increase
+this in flat terrain where small elevation differences are common noise;
+decrease it where rooftop-to-ground relief is reliably large.</p>
+<p><strong><code>buffer_dist</code></strong> (default <code>5</code>,
+map units): Width of the exterior ring used for the ground comparison.
+Should be wide enough to capture true ground-level values beyond the
+building footprint, but not so wide that it picks up adjacent
+buildings.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">valid_polys</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/remove_invalid_polys.html">remove_invalid_polys</a></span><span class="op">(</span><span class="va">filtered</span>, <span class="va">r_filled</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_raster</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">r_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">y</span>, fill <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">valid_polys</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#8b2500"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">valid_polys</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">coord_sf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_fill_rp</span><span class="op">(</span>name <span class="op">=</span> <span class="st">"Elev. (m)"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">theme_rp</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span></span>
 <span>    title    <span class="op">=</span> <span class="st">"Validated Building Polygons"</span>,</span>
-<span>    subtitle <span class="op">=</span> <span class="st">"Polygons with insufficient raster coverage have been removed"</span></span>
+<span>    subtitle <span class="op">=</span> <span class="st">"Ground-contaminated and nested polygons removed"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
 <p><img src="raster-polygonizer-workflow_files/figure-html/remove-invalid-1.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
 <hr>
@@ -401,168 +478,141 @@ before the characterization steps.</p>
 <div class="section level3">
 <h3 id="step-6a-estimate-building-height">Step 6a — Estimate Building Height<a class="anchor" aria-label="anchor" href="#step-6a-estimate-building-height"></a>
 </h3>
-<p><strong><code>estimate_building_height(buildings, raster)</code></strong></p>
-<p>This function extracts the mean elevation of the raster cells within
-each polygon. In a normalized DSM (where ground elevation has already
-been subtracted), this value is building height directly. In a raw DSM,
-it represents absolute rooftop elevation — useful for differencing
-against a pre-snow scan to derive snow depth. No tunable parameters are
-required.</p>
+<p><strong><code>estimate_building_height(polys, raster, buffer_dist, prob, clamp)</code></strong></p>
+<p>Rather than simply averaging elevation values inside a polygon (which
+would give absolute rooftop elevation, not building height), this
+function estimates height <em>relative to the surrounding ground</em>.
+For each polygon it computes a low percentile of raster values inside
+the polygon (<code>inside_q</code>) and the same percentile in a
+surrounding buffer ring (<code>outside_q</code>). Height is then
+<code>inside_q - outside_q</code>.</p>
+<p>Using a low percentile (default <code>prob = 0.02</code>, the 2nd
+percentile) rather than the mean makes the estimate robust to rooftop
+features like parapets, HVAC equipment, and other protrusions that would
+inflate a mean-based estimate. The same percentile is used for both
+inside and outside values for consistency. If <code>clamp = TRUE</code>,
+negative heights (which can arise from noisy data or polygon edge
+effects) are set to zero.</p>
+<p>The function returns the input polygon layer with three new columns:
+<code>inside_q</code>, <code>outside_q</code>, and
+<code>height</code>.</p>
+<p><strong><code>buffer_dist</code></strong> (default <code>5</code>,
+map units): Width of the exterior ring used to sample surrounding ground
+elevation. Should extend far enough to clear the building footprint and
+capture true ground values.</p>
+<p><strong><code>prob</code></strong> (default <code>0.02</code>):
+Quantile used for both inside and outside elevation estimates. Lower
+values are more robust to high-elevation outliers but may be sensitive
+to data voids if coverage is thin.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_building_height.html">estimate_building_height</a></span><span class="op">(</span><span class="va">valid_polys</span>, <span class="va">r_filled</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rspatial.github.io/terra/reference/headtail.html" class="external-link">head</a></span><span class="op">(</span><span class="va">df</span>, <span class="fl">10</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="https://rspatial.github.io/terra/reference/headtail.html" class="external-link">head</a></span><span class="op">(</span><span class="va">df</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"building_id"</span>, <span class="st">"inside_q"</span>, <span class="st">"outside_q"</span>, <span class="st">"height"</span><span class="op">)</span><span class="op">]</span>, <span class="fl">10</span><span class="op">)</span>,</span>
 <span>  digits  <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  caption <span class="op">=</span> <span class="st">"Estimated mean rooftop elevation for the first 10 buildings (meters)"</span></span>
+<span>  caption <span class="op">=</span> <span class="st">"Estimated building height for the first 10 polygons. Height is the difference between the 2nd-percentile rooftop elevation and the 2nd-percentile ground elevation in the surrounding buffer ring."</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<table style="width:100%;" class="table">
-<caption>Estimated mean rooftop elevation for the first 10 buildings
-(meters)</caption>
+<table class="table">
+<caption>Estimated building height for the first 10 polygons. Height is
+the difference between the 2nd-percentile rooftop elevation and the
+2nd-percentile ground elevation in the surrounding buffer
+ring.</caption>
 <colgroup>
-<col width="2%">
-<col width="27%">
-<col width="10%">
-<col width="7%">
-<col width="5%">
-<col width="15%">
-<col width="8%">
-<col width="8%">
-<col width="8%">
-<col width="6%">
+<col width="4%">
+<col width="16%">
+<col width="12%">
+<col width="13%">
+<col width="9%">
+<col width="43%">
 </colgroup>
 <thead><tr class="header">
 <th align="left"></th>
-<th align="left">geometry</th>
 <th align="right">building_id</th>
-<th align="right">area</th>
-<th align="right">perim</th>
-<th align="right">perim_area_ratio</th>
-<th align="right">vertices</th>
 <th align="right">inside_q</th>
 <th align="right">outside_q</th>
 <th align="right">height</th>
+<th align="left">geometry</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td align="left">3</td>
-<td align="left">POLYGON ((465880.9 7193013,…</td>
 <td align="right">3</td>
-<td align="right">46.71</td>
-<td align="right">0</td>
-<td align="right">0</td>
-<td align="right">5</td>
 <td align="right">152.32</td>
 <td align="right">145.34</td>
 <td align="right">6.97</td>
+<td align="left">POLYGON ((465880.9 7193013,…</td>
 </tr>
 <tr class="even">
 <td align="left">4</td>
-<td align="left">POLYGON ((465784.9 7193026,…</td>
 <td align="right">4</td>
-<td align="right">56.52</td>
-<td align="right">0</td>
-<td align="right">0</td>
-<td align="right">5</td>
 <td align="right">149.50</td>
 <td align="right">144.93</td>
 <td align="right">4.57</td>
+<td align="left">POLYGON ((465784.9 7193026,…</td>
 </tr>
 <tr class="odd">
 <td align="left">5</td>
-<td align="left">POLYGON ((465886.5 7193048,…</td>
-<td align="right">5</td>
-<td align="right">221.00</td>
-<td align="right">0</td>
-<td align="right">0</td>
 <td align="right">5</td>
 <td align="right">151.92</td>
 <td align="right">145.18</td>
 <td align="right">6.74</td>
+<td align="left">POLYGON ((465886.5 7193048,…</td>
 </tr>
 <tr class="even">
 <td align="left">6</td>
-<td align="left">POLYGON ((465708.5 7193102,…</td>
 <td align="right">6</td>
-<td align="right">2326.31</td>
-<td align="right">0</td>
-<td align="right">0</td>
-<td align="right">9</td>
 <td align="right">155.17</td>
 <td align="right">145.10</td>
 <td align="right">10.08</td>
+<td align="left">POLYGON ((465708.5 7193102,…</td>
 </tr>
 <tr class="odd">
 <td align="left">7</td>
-<td align="left">POLYGON ((465757.5 7193110,…</td>
-<td align="right">7</td>
-<td align="right">179.47</td>
-<td align="right">0</td>
-<td align="right">0</td>
 <td align="right">7</td>
 <td align="right">149.44</td>
 <td align="right">145.21</td>
 <td align="right">4.23</td>
+<td align="left">POLYGON ((465757.5 7193110,…</td>
 </tr>
 <tr class="even">
 <td align="left">9</td>
-<td align="left">POLYGON ((465884.5 7193135,…</td>
 <td align="right">9</td>
-<td align="right">1104.02</td>
-<td align="right">0</td>
-<td align="right">0</td>
-<td align="right">7</td>
 <td align="right">153.41</td>
 <td align="right">145.68</td>
 <td align="right">7.73</td>
+<td align="left">POLYGON ((465884.5 7193135,…</td>
 </tr>
 <tr class="odd">
 <td align="left">10</td>
-<td align="left">POLYGON ((465728.5 7193238,…</td>
 <td align="right">10</td>
-<td align="right">681.50</td>
-<td align="right">0</td>
-<td align="right">0</td>
-<td align="right">5</td>
 <td align="right">151.50</td>
 <td align="right">144.83</td>
 <td align="right">6.67</td>
+<td align="left">POLYGON ((465728.5 7193238,…</td>
 </tr>
 <tr class="even">
 <td align="left">12</td>
-<td align="left">POLYGON ((465919.5 7193279,…</td>
 <td align="right">12</td>
-<td align="right">934.96</td>
-<td align="right">0</td>
-<td align="right">0</td>
-<td align="right">5</td>
 <td align="right">154.38</td>
 <td align="right">144.96</td>
 <td align="right">9.42</td>
+<td align="left">POLYGON ((465919.5 7193279,…</td>
 </tr>
 <tr class="odd">
 <td align="left">13</td>
-<td align="left">POLYGON ((465809.5 7193281,…</td>
 <td align="right">13</td>
-<td align="right">927.37</td>
-<td align="right">0</td>
-<td align="right">0</td>
-<td align="right">5</td>
 <td align="right">154.36</td>
 <td align="right">144.85</td>
 <td align="right">9.51</td>
+<td align="left">POLYGON ((465809.5 7193281,…</td>
 </tr>
 <tr class="even">
 <td align="left">14</td>
-<td align="left">POLYGON ((465770.5 7193332,…</td>
 <td align="right">14</td>
-<td align="right">938.50</td>
-<td align="right">0</td>
-<td align="right">0</td>
-<td align="right">5</td>
 <td align="right">154.42</td>
 <td align="right">144.88</td>
 <td align="right">9.55</td>
+<td align="left">POLYGON ((465770.5 7193332,…</td>
 </tr>
 </tbody>
 </table>
@@ -577,34 +627,49 @@ retention — a steep south-facing roof sheds snow quickly, while a
 shallow north-facing roof may accumulate loads several times greater.
 This function fits a plane to the raster elevation values within each
 polygon using RANSAC (Random Sample Consensus), a robust estimation
-method that tolerates outlier pixels caused by dormers, vents, parapets,
-and sensor noise.</p>
-<p>For each building, the algorithm randomly samples 3-point subsets,
-fits a plane, and counts how many of the remaining pixels (inliers) fall
-within a residual threshold. The plane with the most inliers wins. A
-stability metric — the spread of slope values across the top 5% of
-candidate fits — is also returned to flag geometrically ambiguous or
-noisy roofs.</p>
-<p><strong><code>n_iter</code></strong> (default <code>500</code>):
-Number of random plane candidates evaluated. More iterations improve
-robustness at the cost of computation time. For large datasets
-<code>200</code> is often sufficient; for noisy or complex roofs,
-<code>1000</code> or more may help.</p>
-<p><strong><code>thresh</code></strong> (default <code>0.1</code>):
-Residual distance in elevation units within which a pixel counts as an
-inlier. Tighten this for high-quality, dense LiDAR where you expect a
-clean planar surface. Loosen it for coarser or noisier data where pixel
-scatter is inherently higher.</p>
+method that explicitly tolerates outlier pixels caused by dormers,
+vents, parapets, and sensor noise.</p>
+<p>Each RANSAC iteration randomly draws 3 pixels from the building’s
+raster footprint, fits a plane through them via linear regression
+(<code>z ~ x + y</code>), and counts how many of the <em>remaining</em>
+pixels (inliers) have residuals below <code>thresh</code>. After
+<code>n_iter</code> iterations, the plane that maximized inlier count is
+selected and used to compute final slope and aspect:</p>
+<ul>
+<li>
+<strong>Slope</strong> = <code>atan(sqrt(a² + b²)) × 180/π</code>,
+where <code>a</code> and <code>b</code> are the x and y plane
+coefficients</li>
+<li>
+<strong>Aspect</strong> =
+<code>(atan2(-a, -b) × 180/π) %% 360</code>, giving compass bearing of
+the downslope direction</li>
+</ul>
+<p>A <strong>stability metric</strong> (<code>slope_range</code>) is
+also returned: the 97.5th minus 2.5th percentile of slope estimates
+across the top 5% of candidate fits, ranked by inlier count. A low value
+means those top candidates agreed closely — the roof surface is planar
+and the fit is reliable. A high value suggests the roof geometry is
+complex or the data is noisy.</p>
+<p><strong><code>thresh</code></strong> (default <code>0.1</code>,
+elevation units): The residual distance within which a pixel is counted
+as an inlier. Tighten this for high-density LiDAR where rooftop surfaces
+are reliably smooth. Loosen it for coarser data where pixel-to-plane
+scatter is inherently larger. <em>For scenes with many small buildings,
+individual polygons contain fewer pixels, so each pixel carries more
+weight — a tighter <code>thresh</code> here helps ensure the fitted
+plane is genuinely representative of the roof surface rather than a
+statistical accident.</em></p>
 <p><strong><code>min_inliers</code></strong> (default <code>10</code>):
-Minimum inlier pixels required to accept a plane fit. For small
-buildings with few raster cells, lower this value to avoid discarding
-valid detections. For large buildings, raising it ensures the fitted
-plane is well-supported by data.</p>
-<p><strong>Interpreting <code>slope_range</code>:</strong> A low value
-(near 0) means the top candidate planes agreed closely on slope — the
-roof is likely a clean, simple plane. A high value suggests complex
-geometry or noisy data; treat that building’s slope estimate with added
-caution.</p>
+Minimum pixels required to accept any candidate plane. For small
+buildings with few raster cells, lower this to avoid discarding valid
+fits. For large buildings, raising it ensures the plane is
+well-supported across the full footprint.</p>
+<p><strong><code>n_iter</code></strong> (default <code>500</code>):
+Number of random 3-point samples evaluated. More iterations improve the
+chance of finding the globally best plane. <code>200</code> is often
+sufficient for clean data; <code>1000</code> or more is warranted for
+noisy or geometrically complex roofs.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">buildings_sv</span> <span class="op">&lt;-</span> <span class="fu">terra</span><span class="fu">::</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/vect.html" class="external-link">vect</a></span><span class="op">(</span><span class="va">valid_polys</span><span class="op">)</span></span>
 <span></span>
@@ -624,11 +689,12 @@ caution.</p>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://rspatial.github.io/terra/reference/headtail.html" class="external-link">head</a></span><span class="op">(</span><span class="va">ransac_result</span><span class="op">$</span><span class="va">summary_table</span>, <span class="fl">10</span><span class="op">)</span>,</span>
 <span>  digits  <span class="op">=</span> <span class="fl">2</span>,</span>
-<span>  caption <span class="op">=</span> <span class="st">"Roof slope and aspect estimates for the first 10 buildings"</span></span>
+<span>  caption <span class="op">=</span> <span class="st">"Roof slope and aspect estimates. slope_range is the spread of slope values across the top 5% of RANSAC candidate fits — lower values indicate a more stable, reliable plane fit."</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <table class="table">
-<caption>Roof slope and aspect estimates for the first 10
-buildings</caption>
+<caption>Roof slope and aspect estimates. slope_range is the spread of
+slope values across the top 5% of RANSAC candidate fits — lower values
+indicate a more stable, reliable plane fit.</caption>
 <colgroup>
 <col width="16%">
 <col width="13%">
