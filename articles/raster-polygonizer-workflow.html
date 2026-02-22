@@ -51,9 +51,6 @@
 <li>
       <a href="../articles/raster-polygonizer-workflow.html">Raster Polygonizer Workflow</a>
     </li>
-    <li>
-      <a href="../articles/workflow_building_polygons_old.html">Raster Polygonizer Workflow</a>
-    </li>
   </ul>
 </li>
       </ul>
@@ -186,51 +183,23 @@ or both depending on your analysis goals.</p>
 <code>r</code> is a LiDAR-derived digital surface model (DSM) — a raster
 where each cell records the elevation of the highest surface at that
 location, whether bare earth, a rooftop, or a tree. <code>b</code>
-contains manually digitized building footprints used later as a
-validation reference.</p>
+contains digitized building footprints provided by the Fairbanks North
+Star Borough.</p>
 <hr>
-</div>
-<div class="section level3">
-<h3 id="a-shared-plot-theme">A Shared Plot Theme<a class="anchor" aria-label="anchor" href="#a-shared-plot-theme"></a>
-</h3>
-<p>We define a shared ggplot theme using a warm earth-tone document
+<p>#We define a shared ggplot theme using a warm earth-tone document
 background, and a blue-to-gold raster fill palette. Blue and gold sit
 across from each other on the color wheel — the cool-to-warm contrast
 gives elevation data strong visual pop against the neutral document
 background while remaining readable in print.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">theme_rp</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html" class="external-link">theme_minimal</a></span><span class="op">(</span>base_size <span class="op">=</span> <span class="fl">11</span><span class="op">)</span> <span class="op">+</span></span>
-<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/theme.html" class="external-link">theme</a></span><span class="op">(</span></span>
-<span>      plot.background   <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_rect</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"#f5f0e8"</span>, color <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span>,</span>
-<span>      panel.background  <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_rect</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"#f5f0e8"</span>, color <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span>,</span>
-<span>      panel.grid        <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_line</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"#ddd5c0"</span>, linewidth <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span>,</span>
-<span>      plot.title        <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>face <span class="op">=</span> <span class="st">"bold"</span>, color <span class="op">=</span> <span class="st">"#3b2f1e"</span>, size <span class="op">=</span> <span class="fl">12</span><span class="op">)</span>,</span>
-<span>      plot.subtitle     <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"#6b5740"</span>, size <span class="op">=</span> <span class="fl">10</span><span class="op">)</span>,</span>
-<span>      legend.background <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_rect</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"#f5f0e8"</span>, color <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span>,</span>
-<span>      legend.title      <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"#3b2f1e"</span>, size <span class="op">=</span> <span class="fl">9</span><span class="op">)</span>,</span>
-<span>      legend.text       <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"#3b2f1e"</span>, size <span class="op">=</span> <span class="fl">8</span><span class="op">)</span>,</span>
-<span>      axis.text         <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html" class="external-link">element_text</a></span><span class="op">(</span>color <span class="op">=</span> <span class="st">"#6b5740"</span>, size <span class="op">=</span> <span class="fl">8</span><span class="op">)</span></span>
-<span>    <span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Blue-to-gold: complementary to the warm document background</span></span>
-<span><span class="va">scale_fill_rp</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/scale_gradient.html" class="external-link">scale_fill_gradientn</a></span><span class="op">(</span></span>
-<span>    colors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#1a3a5c"</span>, <span class="st">"#1d6fa4"</span>, <span class="st">"#4ba3c7"</span>, <span class="st">"#a8d5e2"</span>, <span class="st">"#f5e6a3"</span>, <span class="st">"#e8b84b"</span>, <span class="st">"#c47c0f"</span><span class="op">)</span>,</span>
-<span>    <span class="va">...</span></span>
-<span>  <span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-<hr>
 </div>
 <div class="section level3">
 <h3 id="step-1-fill-the-ground-raster">Step 1 — Fill the Ground Raster<a class="anchor" aria-label="anchor" href="#step-1-fill-the-ground-raster"></a>
 </h3>
 <p><strong><code>fill_ground_raster(raster, w = 15)</code></strong></p>
 <p>LiDAR point clouds frequently contain data voids where the sensor
-received no usable return, typically under dense vegetation, at steep
-angles, or near flight strip edges. Left unfilled, these holes disrupt
-the gradient computation in Step 2.</p>
+received no usable return, typically due to occlusion between the
+collection device and the point of measurement. Left unfilled, these
+holes disrupt the gradient computation in Step 2.</p>
 <p><code><a href="../reference/fill_ground_raster.html">fill_ground_raster()</a></code> addresses this with a focal
 neighborhood approach designed specifically for elevation data. For each
 NA cell, it examines all valid neighbors within a <code>w × w</code>
@@ -242,8 +211,10 @@ being pulled upward by nearby rooftops or vegetation, which is exactly
 what downstream processing needs.</p>
 <p><strong><code>w</code></strong> (default <code>15</code>): The focal
 window size in pixels. Larger windows can fill bigger voids but may pull
-values from more distant and less representative neighbors.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+values from more distant and less representative neighbors. Typically
+this window size will work well unless the buildings of interest are
+very large.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r_df_raw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rspatial.github.io/terra/reference/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">r</span>, xy <span class="op">=</span> <span class="cn">TRUE</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rspatial.github.io/terra/reference/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">r_df_raw</span><span class="op">)</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"value"</span></span>
 <span></span>
@@ -256,8 +227,8 @@ values from more distant and less representative neighbors.</p>
 <span>    title    <span class="op">=</span> <span class="st">"Raw Input Raster"</span>,</span>
 <span>    subtitle <span class="op">=</span> <span class="st">"LiDAR digital surface model — voids appear where returns were absent or filtered"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
-<p><img src="raster-polygonizer-workflow_files/figure-html/fill-1.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<p><img src="raster-polygonizer-workflow_files/figure-html/fill-1.png" class="r-plt" alt="" width="70%" style="display: block; margin: auto;"></p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">r_filled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/fill_ground_raster.html">fill_ground_raster</a></span><span class="op">(</span><span class="va">r</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">r_df_filled</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rspatial.github.io/terra/reference/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">r_filled</span>, xy <span class="op">=</span> <span class="cn">TRUE</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -272,7 +243,7 @@ values from more distant and less representative neighbors.</p>
 <span>    title    <span class="op">=</span> <span class="st">"Filled Ground Raster"</span>,</span>
 <span>    subtitle <span class="op">=</span> <span class="st">"Voids filled using clustering-based ground estimation"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
-<p><img src="raster-polygonizer-workflow_files/figure-html/fill-2.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
+<p><img src="raster-polygonizer-workflow_files/figure-html/fill-2.png" class="r-plt" alt="" width="70%" style="display: block; margin: auto;"></p>
 <hr>
 </div>
 <div class="section level3">
@@ -296,7 +267,7 @@ directions</li>
 exceeds the <code>thr_prob</code> quantile of all gradient values are
 classified as edges</li>
 <li>
-<strong>Morphological closing</strong> — a dilate-then-erode
+<strong>Morphological closing</strong> — a expand-then-erode
 operation bridges small gaps in the detected edge lines, producing
 closed loops that surround building interiors</li>
 </ol>
@@ -308,7 +279,7 @@ only the strongest gradients (sharpest elevation transitions) pass
 through, which helps in dense urban scenes with many small buildings
 where vegetation and clutter produce weaker false edges. Lowering it
 recovers subtler edges but increases noise.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">edges</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_building_edges_to_polygons.html">extract_building_edges_to_polygons</a></span><span class="op">(</span><span class="va">r_filled</span>, thr_prob <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
@@ -344,10 +315,10 @@ discarded here).</p>
 <p>The function also computes and attaches <code>area</code>,
 <code>perimeter</code>, <code>perim_area_ratio</code>, and
 <code>vertices</code> columns to the output for downstream use.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">buildings_sf</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/clean_building_polygons.html">clean_building_polygons</a></span><span class="op">(</span></span>
 <span>  closed_edges <span class="op">=</span> <span class="va">edges</span><span class="op">$</span><span class="va">closed_edges</span>,</span>
-<span>  shrink_dist  <span class="op">=</span> <span class="op">-</span><span class="fl">0.5</span>,</span>
+<span>  shrink_dist  <span class="op">=</span> <span class="op">-</span><span class="fl">1.5</span>,</span>
 <span>  simplify_tol <span class="op">=</span> <span class="fl">2.5</span>,</span>
 <span>  min_area     <span class="op">=</span> <span class="fl">19.99</span>,</span>
 <span>  max_area     <span class="op">=</span> <span class="fl">3000</span></span>
@@ -358,7 +329,7 @@ discarded here).</p>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_raster</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">r_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">y</span>, fill <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">buildings_sf</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">buildings_sf</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">coord_sf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_fill_rp</span><span class="op">(</span>name <span class="op">=</span> <span class="st">"Elev. (m)"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">theme_rp</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
@@ -366,7 +337,7 @@ discarded here).</p>
 <span>    title    <span class="op">=</span> <span class="st">"Candidate Building Polygons"</span>,</span>
 <span>    subtitle <span class="op">=</span> <span class="st">"Interior regions enclosed by edge loops, shrunk and simplified"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
-<p><img src="raster-polygonizer-workflow_files/figure-html/clean-1.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
+<p><img src="raster-polygonizer-workflow_files/figure-html/clean-1.png" class="r-plt" alt="" width="70%" style="display: block; margin: auto;"></p>
 <hr>
 </div>
 <div class="section level3">
@@ -399,7 +370,7 @@ pipeline.</p>
 Lower values recover more partial matches at the cost of accepting more
 false detections; higher values demand tighter spatial agreement with
 the reference.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Assign a CRS to align all layers (UTM Zone 6N for Fairbanks, AK)</span></span>
 <span><span class="fu">terra</span><span class="fu">::</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/crs.html" class="external-link">crs</a></span><span class="op">(</span><span class="va">r</span><span class="op">)</span>        <span class="op">&lt;-</span> <span class="st">"EPSG:32606"</span></span>
 <span><span class="va">r_crs</span>                <span class="op">&lt;-</span> <span class="fu">terra</span><span class="fu">::</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/crs.html" class="external-link">crs</a></span><span class="op">(</span><span class="va">r</span><span class="op">)</span></span>
@@ -410,12 +381,12 @@ the reference.</p>
 <span><span class="va">filtered</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/filter_by_ground_truth.html">filter_by_ground_truth</a></span><span class="op">(</span></span>
 <span>  <span class="va">buildings_sf</span>,</span>
 <span>  <span class="va">b</span>,</span>
-<span>  threshold <span class="op">=</span> <span class="fl">0.5</span></span>
+<span>  threshold <span class="op">=</span> <span class="fl">0.75</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_raster</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">r_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">y</span>, fill <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">filtered</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">filtered</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">coord_sf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_fill_rp</span><span class="op">(</span>name <span class="op">=</span> <span class="st">"Elev. (m)"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">theme_rp</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
@@ -423,7 +394,7 @@ the reference.</p>
 <span>    title    <span class="op">=</span> <span class="st">"After Ground Truth Filtering"</span>,</span>
 <span>    subtitle <span class="op">=</span> <span class="st">"Candidates retained where ≥50% of their area overlaps a reference footprint"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
-<p><img src="raster-polygonizer-workflow_files/figure-html/filter-1.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
+<p><img src="raster-polygonizer-workflow_files/figure-html/filter-1.png" class="r-plt" alt="" width="70%" style="display: block; margin: auto;"></p>
 <hr>
 </div>
 <div class="section level3">
@@ -459,12 +430,12 @@ map units): Width of the exterior ring used for the ground comparison.
 Should be wide enough to capture true ground-level values beyond the
 building footprint, but not so wide that it picks up adjacent
 buildings.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">valid_polys</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/remove_invalid_polys.html">remove_invalid_polys</a></span><span class="op">(</span><span class="va">filtered</span>, <span class="va">r_filled</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">valid_polys</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/remove_invalid_polys.html">remove_invalid_polys</a></span><span class="op">(</span><span class="va">filtered</span>, <span class="va">r_filled</span>, ground_tol <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_tile.html" class="external-link">geom_raster</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">r_df</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">x</span>, y <span class="op">=</span> <span class="va">y</span>, fill <span class="op">=</span> <span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
-<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">valid_polys</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">0.6</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">geom_sf</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">valid_polys</span>, fill <span class="op">=</span> <span class="cn">NA</span>, color <span class="op">=</span> <span class="st">"#c47c0f"</span>, linewidth <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggsf.html" class="external-link">coord_sf</a></span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_fill_rp</span><span class="op">(</span>name <span class="op">=</span> <span class="st">"Elev. (m)"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">theme_rp</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
@@ -472,7 +443,7 @@ buildings.</p>
 <span>    title    <span class="op">=</span> <span class="st">"Validated Building Polygons"</span>,</span>
 <span>    subtitle <span class="op">=</span> <span class="st">"Ground-contaminated and nested polygons removed"</span></span>
 <span>  <span class="op">)</span></span></code></pre></div>
-<p><img src="raster-polygonizer-workflow_files/figure-html/remove-invalid-1.png" class="r-plt" alt="" width="672" style="display: block; margin: auto;"></p>
+<p><img src="raster-polygonizer-workflow_files/figure-html/remove-invalid-1.png" class="r-plt" alt="" width="70%" style="display: block; margin: auto;"></p>
 <hr>
 </div>
 <div class="section level3">
@@ -487,12 +458,13 @@ the polygon (<code>inside_q</code>) and the same percentile in a
 surrounding buffer ring (<code>outside_q</code>). Height is then
 <code>inside_q - outside_q</code>.</p>
 <p>Using a low percentile (default <code>prob = 0.02</code>, the 2nd
-percentile) rather than the mean makes the estimate robust to rooftop
-features like parapets, HVAC equipment, and other protrusions that would
-inflate a mean-based estimate. The same percentile is used for both
-inside and outside values for consistency. If <code>clamp = TRUE</code>,
+percentile) rather than the minimum makes the estimate robust to rooftop
+features like dips or holes. The same percentile is used for both inside
+and outside values for consistency. If <code>clamp = TRUE</code>,
 negative heights (which can arise from noisy data or polygon edge
-effects) are set to zero.</p>
+effects) are set to zero. Using as low a value as possible inside our
+interior polygon will help to combat bias towards the peak of gabled
+roofs.</p>
 <p>The function returns the input polygon layer with three new columns:
 <code>inside_q</code>, <code>outside_q</code>, and
 <code>height</code>.</p>
@@ -504,7 +476,7 @@ capture true ground values.</p>
 Quantile used for both inside and outside elevation estimates. Lower
 values are more robust to high-elevation outliers but may be sensitive
 to data voids if coverage is thin.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/estimate_building_height.html">estimate_building_height</a></span><span class="op">(</span><span class="va">valid_polys</span>, <span class="va">r_filled</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">knitr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/knitr/man/kable.html" class="external-link">kable</a></span><span class="op">(</span></span>
@@ -535,84 +507,84 @@ ring.</caption>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="left">3</td>
-<td align="right">3</td>
-<td align="right">152.32</td>
-<td align="right">145.34</td>
-<td align="right">6.97</td>
-<td align="left">POLYGON ((465880.9 7193013,…</td>
-</tr>
-<tr class="even">
-<td align="left">4</td>
-<td align="right">4</td>
-<td align="right">149.50</td>
-<td align="right">144.93</td>
-<td align="right">4.57</td>
-<td align="left">POLYGON ((465784.9 7193026,…</td>
-</tr>
-<tr class="odd">
-<td align="left">5</td>
-<td align="right">5</td>
-<td align="right">151.92</td>
-<td align="right">145.18</td>
-<td align="right">6.74</td>
-<td align="left">POLYGON ((465886.5 7193048,…</td>
+<td align="left">2</td>
+<td align="right">2</td>
+<td align="right">148.39</td>
+<td align="right">144.86</td>
+<td align="right">3.53</td>
+<td align="left">POLYGON ((465812.5 7193007,…</td>
 </tr>
 <tr class="even">
 <td align="left">6</td>
 <td align="right">6</td>
-<td align="right">155.17</td>
-<td align="right">145.10</td>
-<td align="right">10.08</td>
-<td align="left">POLYGON ((465708.5 7193102,…</td>
+<td align="right">149.41</td>
+<td align="right">144.94</td>
+<td align="right">4.47</td>
+<td align="left">POLYGON ((465779.9 7193021,…</td>
 </tr>
 <tr class="odd">
 <td align="left">7</td>
 <td align="right">7</td>
-<td align="right">149.44</td>
-<td align="right">145.21</td>
-<td align="right">4.23</td>
-<td align="left">POLYGON ((465757.5 7193110,…</td>
+<td align="right">155.18</td>
+<td align="right">145.30</td>
+<td align="right">9.88</td>
+<td align="left">POLYGON ((465709.5 7193102,…</td>
 </tr>
 <tr class="even">
-<td align="left">9</td>
-<td align="right">9</td>
-<td align="right">153.41</td>
-<td align="right">145.68</td>
-<td align="right">7.73</td>
-<td align="left">POLYGON ((465884.5 7193135,…</td>
+<td align="left">8</td>
+<td align="right">8</td>
+<td align="right">149.44</td>
+<td align="right">145.30</td>
+<td align="right">4.14</td>
+<td align="left">POLYGON ((465758.5 7193108,…</td>
 </tr>
 <tr class="odd">
 <td align="left">10</td>
 <td align="right">10</td>
 <td align="right">151.50</td>
-<td align="right">144.83</td>
-<td align="right">6.67</td>
-<td align="left">POLYGON ((465728.5 7193238,…</td>
+<td align="right">144.88</td>
+<td align="right">6.62</td>
+<td align="left">POLYGON ((465729.9 7193238,…</td>
 </tr>
 <tr class="even">
-<td align="left">12</td>
-<td align="right">12</td>
-<td align="right">154.38</td>
-<td align="right">144.96</td>
-<td align="right">9.42</td>
-<td align="left">POLYGON ((465919.5 7193279,…</td>
+<td align="left">11</td>
+<td align="right">11</td>
+<td align="right">154.36</td>
+<td align="right">144.86</td>
+<td align="right">9.50</td>
+<td align="left">POLYGON ((465798.5 7193214,…</td>
 </tr>
 <tr class="odd">
 <td align="left">13</td>
 <td align="right">13</td>
-<td align="right">154.36</td>
-<td align="right">144.85</td>
-<td align="right">9.51</td>
-<td align="left">POLYGON ((465809.5 7193281,…</td>
+<td align="right">154.43</td>
+<td align="right">144.90</td>
+<td align="right">9.52</td>
+<td align="left">POLYGON ((465757.9 7193331,…</td>
 </tr>
 <tr class="even">
-<td align="left">14</td>
-<td align="right">14</td>
-<td align="right">154.42</td>
-<td align="right">144.88</td>
-<td align="right">9.55</td>
-<td align="left">POLYGON ((465770.5 7193332,…</td>
+<td align="left">15</td>
+<td align="right">15</td>
+<td align="right">154.34</td>
+<td align="right">144.91</td>
+<td align="right">9.42</td>
+<td align="left">POLYGON ((465807.5 7193300,…</td>
+</tr>
+<tr class="odd">
+<td align="left">37</td>
+<td align="right">37</td>
+<td align="right">152.01</td>
+<td align="right">145.23</td>
+<td align="right">6.78</td>
+<td align="left">POLYGON ((465887.5 7193048,…</td>
+</tr>
+<tr class="even">
+<td align="left">41</td>
+<td align="right">41</td>
+<td align="right">150.10</td>
+<td align="right">145.65</td>
+<td align="right">4.45</td>
+<td align="left">POLYGON ((465854.5 7193103,…</td>
 </tr>
 </tbody>
 </table>
@@ -632,7 +604,7 @@ vents, parapets, and sensor noise.</p>
 <p>Each RANSAC iteration randomly draws 3 pixels from the building’s
 raster footprint, fits a plane through them via linear regression
 (<code>z ~ x + y</code>), and counts how many of the <em>remaining</em>
-pixels (inliers) have residuals below <code>thresh</code>. After
+pixels have residuals below <code>thresh</code> (inliers). After
 <code>n_iter</code> iterations, the plane that maximized inlier count is
 selected and used to compute final slope and aspect:</p>
 <ul>
@@ -662,15 +634,16 @@ plane is genuinely representative of the roof surface rather than a
 statistical accident.</em></p>
 <p><strong><code>min_inliers</code></strong> (default <code>10</code>):
 Minimum pixels required to accept any candidate plane. For small
-buildings with few raster cells, lower this to avoid discarding valid
-fits. For large buildings, raising it ensures the plane is
-well-supported across the full footprint.</p>
+buildings with few raster cells, or lower resolution rasters, lower this
+to avoid discarding valid fits. For large buildings, raising it ensures
+the plane is well-supported across the full footprint. Mostly this
+parameter is treated as a fail-safe, and is not meant to be tuned.</p>
 <p><strong><code>n_iter</code></strong> (default <code>500</code>):
 Number of random 3-point samples evaluated. More iterations improve the
-chance of finding the globally best plane. <code>200</code> is often
-sufficient for clean data; <code>1000</code> or more is warranted for
-noisy or geometrically complex roofs.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+chance of finding the globally best plane. Raise this towards the
+ceiling of what computational power will allow for best-fit
+estimates.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">buildings_sv</span> <span class="op">&lt;-</span> <span class="fu">terra</span><span class="fu">::</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/vect.html" class="external-link">vect</a></span><span class="op">(</span><span class="va">valid_polys</span><span class="op">)</span></span>
 <span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="st">"building_id"</span> <span class="op"><a href="https://rspatial.github.io/terra/reference/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rspatial.github.io/terra/reference/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">buildings_sv</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
@@ -713,84 +686,84 @@ indicate a more stable, reliable plane fit.</caption>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td align="right">3</td>
-<td align="right">17.42</td>
-<td align="right">94.35</td>
-<td align="right">25</td>
-<td align="right">2.42</td>
-<td align="right">11</td>
-</tr>
-<tr class="even">
-<td align="right">4</td>
-<td align="right">2.89</td>
-<td align="right">173.89</td>
-<td align="right">38</td>
-<td align="right">1.65</td>
-<td align="right">11</td>
-</tr>
-<tr class="odd">
+<td align="right">2</td>
+<td align="right">24.10</td>
+<td align="right">188.95</td>
+<td align="right">26</td>
+<td align="right">2.58</td>
 <td align="right">5</td>
-<td align="right">5.01</td>
-<td align="right">180.61</td>
-<td align="right">234</td>
-<td align="right">0.56</td>
-<td align="right">18</td>
 </tr>
 <tr class="even">
 <td align="right">6</td>
-<td align="right">0.41</td>
-<td align="right">203.25</td>
-<td align="right">2134</td>
-<td align="right">0.21</td>
-<td align="right">23</td>
+<td align="right">3.50</td>
+<td align="right">138.59</td>
+<td align="right">20</td>
+<td align="right">0.72</td>
+<td align="right">5</td>
 </tr>
 <tr class="odd">
 <td align="right">7</td>
-<td align="right">0.12</td>
-<td align="right">336.99</td>
-<td align="right">218</td>
 <td align="right">0.24</td>
-<td align="right">21</td>
+<td align="right">205.75</td>
+<td align="right">1897</td>
+<td align="right">0.30</td>
+<td align="right">23</td>
 </tr>
 <tr class="even">
-<td align="right">9</td>
-<td align="right">0.50</td>
-<td align="right">292.62</td>
-<td align="right">744</td>
-<td align="right">0.49</td>
-<td align="right">23</td>
+<td align="right">8</td>
+<td align="right">0.07</td>
+<td align="right">4.31</td>
+<td align="right">73</td>
+<td align="right">0.26</td>
+<td align="right">18</td>
 </tr>
 <tr class="odd">
 <td align="right">10</td>
-<td align="right">0.35</td>
-<td align="right">1.47</td>
-<td align="right">694</td>
 <td align="right">0.42</td>
-<td align="right">20</td>
+<td align="right">356.67</td>
+<td align="right">585</td>
+<td align="right">0.33</td>
+<td align="right">19</td>
 </tr>
 <tr class="even">
-<td align="right">12</td>
-<td align="right">0.05</td>
-<td align="right">227.97</td>
-<td align="right">964</td>
-<td align="right">0.26</td>
+<td align="right">11</td>
+<td align="right">0.06</td>
+<td align="right">164.24</td>
+<td align="right">784</td>
+<td align="right">0.28</td>
 <td align="right">24</td>
 </tr>
 <tr class="odd">
 <td align="right">13</td>
-<td align="right">0.18</td>
-<td align="right">267.57</td>
-<td align="right">932</td>
-<td align="right">0.31</td>
+<td align="right">1.34</td>
+<td align="right">90.06</td>
+<td align="right">813</td>
+<td align="right">0.42</td>
 <td align="right">24</td>
 </tr>
 <tr class="even">
-<td align="right">14</td>
-<td align="right">1.33</td>
-<td align="right">90.90</td>
-<td align="right">911</td>
-<td align="right">0.28</td>
-<td align="right">25</td>
+<td align="right">15</td>
+<td align="right">0.09</td>
+<td align="right">266.88</td>
+<td align="right">828</td>
+<td align="right">0.39</td>
+<td align="right">24</td>
+</tr>
+<tr class="odd">
+<td align="right">37</td>
+<td align="right">4.96</td>
+<td align="right">181.46</td>
+<td align="right">168</td>
+<td align="right">1.04</td>
+<td align="right">15</td>
+</tr>
+<tr class="even">
+<td align="right">41</td>
+<td align="right">2.36</td>
+<td align="right">228.36</td>
+<td align="right">172</td>
+<td align="right">0.56</td>
+<td align="right">17</td>
 </tr>
 </tbody>
 </table>
