@@ -1,0 +1,805 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Raster Polygonizer Workflow},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Raster Polygonizer Workflow}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+\section{From LiDAR Scan to Building
+Footprint}\label{from-lidar-scan-to-building-footprint}
+
+\emph{A complete workflow for extracting, filtering, and characterizing
+rooftop polygons from aerial elevation data}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Why This Package?}\label{why-this-package}
+
+Heavy snow accumulation on rooftops is a serious safety concern in cold
+climates --- when loads grow too large, roofs can fail catastrophically.
+Understanding and predicting this risk requires detailed information
+about building geometry across entire cities, but traditional manual
+surveys are slow, expensive, and limited in scale.
+
+Airborne LiDAR (Light Detection and Ranging) offers a powerful
+alternative. By bouncing laser pulses off surfaces from an aircraft and
+recording the return time, LiDAR produces dense, precise
+three-dimensional maps of the built environment. Comparing scans taken
+before and after a snowfall event makes it possible to measure rooftop
+snow accumulation automatically --- at city scale, for thousands of
+buildings at once.
+
+\texttt{rasterpolygonizer} packages the full processing chain needed to
+go from a raw LiDAR-derived elevation raster to a clean, attributed set
+of building footprints, ready for snow load analysis, engineering
+assessment, or any other rooftop-scale application.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Workflow Overview}\label{workflow-overview}
+
+The six functions in this package form a linear pipeline. Each step
+produces output consumed by the next:
+
+\begin{longtable}[]{@{}
+  >{\centering\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2400}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3600}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\centering
+Step
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Function
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Purpose
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 & \texttt{fill\_ground\_raster()} & Fill voids using clustering-based
+ground estimation \\
+2 & \texttt{extract\_building\_edges\_to\_polygons()} & Detect edges via
+Sobel gradients and close them morphologically \\
+3 & \texttt{clean\_building\_polygons()} & Polygonize enclosed
+interiors, then shrink, simplify, and filter by area \\
+4 & \texttt{filter\_by\_ground\_truth()} & Retain candidates with
+sufficient containment within reference footprints \\
+5 & \texttt{remove\_invalid\_polys()} & Remove ground-contaminated and
+nested polygons \\
+6a & \texttt{estimate\_building\_height()} & Estimate height relative to
+surrounding ground elevation \\
+6b & \texttt{roof\_slope\_RANSAC()} & Fit robust planes and derive slope
+and aspect per roof \\
+\end{longtable}
+
+Steps 6a and 6b are independent characterization steps --- run either or
+both depending on your analysis goals.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Load Example Data}\label{load-example-data}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(ggplot2)}
+
+\NormalTok{load\_extdata }\OtherTok{\textless{}{-}} \ControlFlowTok{function}\NormalTok{(filename, }\AttributeTok{pkg =} \StringTok{"rasterpolygonizer"}\NormalTok{) \{}
+\NormalTok{  path }\OtherTok{\textless{}{-}} \FunctionTok{system.file}\NormalTok{(}\StringTok{"extdata"}\NormalTok{, filename, }\AttributeTok{package =}\NormalTok{ pkg)}
+  \ControlFlowTok{if}\NormalTok{ (path }\SpecialCharTok{==} \StringTok{""}\NormalTok{) }\FunctionTok{stop}\NormalTok{(}\FunctionTok{sprintf}\NormalTok{(}\StringTok{"File \textquotesingle{}\%s\textquotesingle{} not found in inst/extdata"}\NormalTok{, filename))}
+\NormalTok{  path}
+\NormalTok{\}}
+
+\NormalTok{r }\OtherTok{\textless{}{-}}\NormalTok{ terra}\SpecialCharTok{::}\FunctionTok{rast}\NormalTok{(}\FunctionTok{load\_extdata}\NormalTok{(}\StringTok{"sample\_raster.tif"}\NormalTok{))}
+\NormalTok{b }\OtherTok{\textless{}{-}}\NormalTok{ sf}\SpecialCharTok{::}\FunctionTok{st\_read}\NormalTok{(}\FunctionTok{load\_extdata}\NormalTok{(}\StringTok{"sample\_buildings.gpkg"}\NormalTok{), }\AttributeTok{quiet =} \ConstantTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+The sample dataset covers a small area of Fairbanks, Alaska. \texttt{r}
+is a LiDAR-derived digital surface model (DSM) --- a raster where each
+cell records the elevation of the highest surface at that location,
+whether bare earth, a rooftop, or a tree. \texttt{b} contains digitized
+building footprints provided by the Fairbanks North Star Borough.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\#We define a shared ggplot theme using a warm earth-tone document
+background, and a blue-to-gold raster fill palette. Blue and gold sit
+across from each other on the color wheel --- the cool-to-warm contrast
+gives elevation data strong visual pop against the neutral document
+background while remaining readable in print.
+
+\subsection{Step 1 --- Fill the Ground
+Raster}\label{step-1-fill-the-ground-raster}
+
+\textbf{\texttt{fill\_ground\_raster(raster,\ w\ =\ 15)}}
+
+LiDAR point clouds frequently contain data voids where the sensor
+received no usable return, typically due to occlusion between the
+collection device and the point of measurement. Left unfilled, these
+holes disrupt the gradient computation in Step 2.
+
+\texttt{fill\_ground\_raster()} addresses this with a focal neighborhood
+approach designed specifically for elevation data. For each NA cell, it
+examines all valid neighbors within a \texttt{w\ ×\ w} window and uses
+k-means clustering (up to 3 clusters) to separate them by elevation. It
+then returns the median of the \emph{lowest} cluster --- the best
+available estimate of ground level at that location. This means the fill
+preferentially recovers ground-level values rather than being pulled
+upward by nearby rooftops or vegetation, which is exactly what
+downstream processing needs.
+
+\textbf{\texttt{w}} (default \texttt{15}): The focal window size in
+pixels. Larger windows can fill bigger voids but may pull values from
+more distant and less representative neighbors. Typically this window
+size will work well unless the buildings of interest are very large.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{r\_df\_raw }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(r, }\AttributeTok{xy =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)}
+\FunctionTok{names}\NormalTok{(r\_df\_raw)[}\DecValTok{3}\NormalTok{] }\OtherTok{\textless{}{-}} \StringTok{"value"}
+
+\FunctionTok{ggplot}\NormalTok{(r\_df\_raw) }\SpecialCharTok{+}
+  \FunctionTok{geom\_raster}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ x, }\AttributeTok{y =}\NormalTok{ y, }\AttributeTok{fill =}\NormalTok{ value)) }\SpecialCharTok{+}
+  \FunctionTok{coord\_equal}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_rp}\NormalTok{(}\AttributeTok{name =} \StringTok{"Elev. (m)"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_rp}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title    =} \StringTok{"Raw Input Raster"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"LiDAR digital surface model — voids appear where returns were absent or filtered"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\includegraphics{raster-polygonizer-workflow_files/figure-latex/fill-1} \end{center}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{r\_filled }\OtherTok{\textless{}{-}} \FunctionTok{fill\_ground\_raster}\NormalTok{(r)}
+
+\NormalTok{r\_df\_filled }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(r\_filled, }\AttributeTok{xy =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)}
+\FunctionTok{names}\NormalTok{(r\_df\_filled)[}\DecValTok{3}\NormalTok{] }\OtherTok{\textless{}{-}} \StringTok{"value"}
+
+\FunctionTok{ggplot}\NormalTok{(r\_df\_filled) }\SpecialCharTok{+}
+  \FunctionTok{geom\_raster}\NormalTok{(}\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ x, }\AttributeTok{y =}\NormalTok{ y, }\AttributeTok{fill =}\NormalTok{ value)) }\SpecialCharTok{+}
+  \FunctionTok{coord\_equal}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_rp}\NormalTok{(}\AttributeTok{name =} \StringTok{"Elev. (m)"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_rp}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title    =} \StringTok{"Filled Ground Raster"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Voids filled using clustering{-}based ground estimation"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\includegraphics{raster-polygonizer-workflow_files/figure-latex/fill-2} \end{center}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Step 2 --- Extract Building Edge
+Polygons}\label{step-2-extract-building-edge-polygons}
+
+\textbf{\texttt{extract\_building\_edges\_to\_polygons(raster,\ smooth\_w,\ thr\_prob,\ morph\_w)}}
+
+Buildings appear in a DSM as abrupt vertical discontinuities --- sharp
+jumps in elevation from ground to rooftop. This function detects those
+discontinuities through a four-stage image processing pipeline:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Smoothing} --- a mean focal filter reduces sensor noise before
+  gradient computation
+\item
+  \textbf{Sobel gradient} --- horizontal (Gx) and vertical (Gy) Sobel
+  kernels are applied to the smoothed raster, and their combined
+  magnitude (\texttt{sqrt(Gx²\ +\ Gy²)}) captures edge strength in all
+  directions
+\item
+  \textbf{Thresholding} --- pixels whose gradient magnitude exceeds the
+  \texttt{thr\_prob} quantile of all gradient values are classified as
+  edges
+\item
+  \textbf{Morphological closing} --- a expand-then-erode operation
+  bridges small gaps in the detected edge lines, producing closed loops
+  that surround building interiors
+\end{enumerate}
+
+\textbf{\texttt{thr\_prob}} (default \texttt{0.70}): The quantile
+threshold applied to gradient magnitude. At \texttt{0.70}, the top 30\%
+of gradient values are classified as edges. \emph{Raising this value
+makes the detector more selective} --- only the strongest gradients
+(sharpest elevation transitions) pass through, which helps in dense
+urban scenes with many small buildings where vegetation and clutter
+produce weaker false edges. Lowering it recovers subtler edges but
+increases noise.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{edges }\OtherTok{\textless{}{-}} \FunctionTok{extract\_building\_edges\_to\_polygons}\NormalTok{(r\_filled, }\AttributeTok{thr\_prob =} \FloatTok{0.8}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Step 3 --- Clean Building
+Polygons}\label{step-3-clean-building-polygons}
+
+\textbf{\texttt{clean\_building\_polygons(closed\_edges,\ shrink\_dist,\ simplify\_tol,\ min\_area,\ max\_area)}}
+
+The closed edge loops from Step 2 define the \emph{perimeters} of
+buildings, but what we actually need are filled polygon footprints. The
+key insight in this function is that the edge loops enclose interior
+regions --- so the function first \emph{inverts} the edge raster and
+polygonizes the enclosed FALSE (interior) regions. Those interiors are
+the building footprints.
+
+After polygonization, three cleaning operations are applied in sequence:
+
+\textbf{\texttt{shrink\_dist}} (default \texttt{-0.5}, map units): A
+negative buffer shrinks each polygon inward. This is necessary because
+the edge band detected in Step 2 sits slightly outside the true rooftop
+boundary --- the shrink compensates for that outward bias. Use a more
+negative value for coarser-resolution rasters where the edge band is
+wider.
+
+\textbf{\texttt{simplify\_tol}} (default \texttt{0.5}, map units):
+Douglas-Peucker simplification removes redundant vertices and smooths
+jagged outlines without distorting the overall footprint shape. Larger
+values produce cleaner but blockier polygons.
+
+\textbf{\texttt{min\_area} / \texttt{max\_area}}: After exploding all
+multi-part geometries into individual polygons, those outside this size
+range are dropped. \texttt{min\_area} removes noise patches and the
+small gaps between edge pixels; \texttt{max\_area} removes the large
+background region (the inverted raster always produces one polygon
+covering everything \emph{outside} the buildings, which is discarded
+here).
+
+The function also computes and attaches \texttt{area},
+\texttt{perimeter}, \texttt{perim\_area\_ratio}, and \texttt{vertices}
+columns to the output for downstream use.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buildings\_sf }\OtherTok{\textless{}{-}} \FunctionTok{clean\_building\_polygons}\NormalTok{(}
+  \AttributeTok{closed\_edges =}\NormalTok{ edges}\SpecialCharTok{$}\NormalTok{closed\_edges,}
+  \AttributeTok{shrink\_dist  =} \SpecialCharTok{{-}}\FloatTok{0.5}\NormalTok{,}
+  \AttributeTok{simplify\_tol =} \FloatTok{2.5}\NormalTok{,}
+  \AttributeTok{min\_area     =} \FloatTok{19.99}\NormalTok{,}
+  \AttributeTok{max\_area     =} \DecValTok{3000}
+\NormalTok{)}
+
+\NormalTok{r\_df }\OtherTok{\textless{}{-}} \FunctionTok{as.data.frame}\NormalTok{(r\_filled, }\AttributeTok{xy =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{na.rm =} \ConstantTok{TRUE}\NormalTok{)}
+\FunctionTok{names}\NormalTok{(r\_df)[}\DecValTok{3}\NormalTok{] }\OtherTok{\textless{}{-}} \StringTok{"value"}
+
+\FunctionTok{ggplot}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{geom\_raster}\NormalTok{(}\AttributeTok{data =}\NormalTok{ r\_df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ x, }\AttributeTok{y =}\NormalTok{ y, }\AttributeTok{fill =}\NormalTok{ value)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_sf}\NormalTok{(}\AttributeTok{data =}\NormalTok{ buildings\_sf, }\AttributeTok{fill =} \ConstantTok{NA}\NormalTok{, }\AttributeTok{color =} \StringTok{"\#c47c0f"}\NormalTok{, }\AttributeTok{linewidth =} \FloatTok{0.6}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{coord\_sf}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_rp}\NormalTok{(}\AttributeTok{name =} \StringTok{"Elev. (m)"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_rp}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title    =} \StringTok{"Candidate Building Polygons"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Interior regions enclosed by edge loops, shrunk and simplified"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\includegraphics{raster-polygonizer-workflow_files/figure-latex/clean-1} \end{center}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Step 4 --- Filter by Ground
+Truth}\label{step-4-filter-by-ground-truth}
+
+\textbf{\texttt{filter\_by\_ground\_truth(candidates,\ truth,\ threshold\ =\ 0.75)}}
+
+Not every candidate polygon corresponds to a real building --- some will
+be vegetation clumps, elevated infrastructure, or detection artifacts.
+When a reference layer of known building footprints is available (e.g.,
+from municipal GIS records or manual digitizing), this function uses
+spatial overlap to filter out false detections.
+
+For each candidate polygon, the function computes a \textbf{containment
+ratio}: the area of intersection with any overlapping reference polygon
+divided by the total area of the candidate. If this ratio meets or
+exceeds \texttt{threshold}, the candidate is kept. A ratio of
+\texttt{0.75} means that at least 75\% of the detected polygon's area
+must fall inside a reference footprint.
+
+Note that this is a one-sided measure --- it evaluates how well the
+\emph{candidate} is contained within the reference, not the reverse.
+This means a smaller detected polygon that sits neatly inside a large
+reference footprint will pass, while a candidate that extends
+significantly beyond the reference boundary will be rejected.
+
+\begin{quote}
+\textbf{No reference layer available?} Skip this step and proceed
+directly to Step 5. The function is optional in the pipeline.
+\end{quote}
+
+\textbf{\texttt{threshold}} (default \texttt{0.75}): Lower values
+recover more partial matches at the cost of accepting more false
+detections; higher values demand tighter spatial agreement with the
+reference.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Assign a CRS to align all layers (UTM Zone 6N for Fairbanks, AK)}
+\NormalTok{terra}\SpecialCharTok{::}\FunctionTok{crs}\NormalTok{(r)        }\OtherTok{\textless{}{-}} \StringTok{"EPSG:32606"}
+\NormalTok{r\_crs                }\OtherTok{\textless{}{-}}\NormalTok{ terra}\SpecialCharTok{::}\FunctionTok{crs}\NormalTok{(r)}
+\NormalTok{terra}\SpecialCharTok{::}\FunctionTok{crs}\NormalTok{(r\_filled) }\OtherTok{\textless{}{-}}\NormalTok{ r\_crs}
+\NormalTok{buildings\_sf         }\OtherTok{\textless{}{-}}\NormalTok{ sf}\SpecialCharTok{::}\FunctionTok{st\_set\_crs}\NormalTok{(buildings\_sf, r\_crs)}
+\NormalTok{b                    }\OtherTok{\textless{}{-}}\NormalTok{ sf}\SpecialCharTok{::}\FunctionTok{st\_set\_crs}\NormalTok{(b, r\_crs)}
+
+\NormalTok{filtered }\OtherTok{\textless{}{-}} \FunctionTok{filter\_by\_ground\_truth}\NormalTok{(}
+\NormalTok{  buildings\_sf,}
+\NormalTok{  b,}
+  \AttributeTok{threshold =} \FloatTok{0.5}
+\NormalTok{)}
+
+\FunctionTok{ggplot}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{geom\_raster}\NormalTok{(}\AttributeTok{data =}\NormalTok{ r\_df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ x, }\AttributeTok{y =}\NormalTok{ y, }\AttributeTok{fill =}\NormalTok{ value)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_sf}\NormalTok{(}\AttributeTok{data =}\NormalTok{ filtered, }\AttributeTok{fill =} \ConstantTok{NA}\NormalTok{, }\AttributeTok{color =} \StringTok{"\#c47c0f"}\NormalTok{, }\AttributeTok{linewidth =} \FloatTok{0.6}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{coord\_sf}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_rp}\NormalTok{(}\AttributeTok{name =} \StringTok{"Elev. (m)"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_rp}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title    =} \StringTok{"After Ground Truth Filtering"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Candidates retained where ≥50\% of their area overlaps a reference footprint"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\includegraphics{raster-polygonizer-workflow_files/figure-latex/filter-1} \end{center}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Step 5 --- Remove Invalid
+Polygons}\label{step-5-remove-invalid-polygons}
+
+\textbf{\texttt{remove\_invalid\_polys(polys,\ raster,\ buffer\_dist,\ ground\_tol,\ remove\_nested)}}
+
+This function performs two distinct cleanup passes in a deliberate
+order.
+
+\textbf{Pass 1 --- Ground contamination check:} For each polygon, the
+function extracts the minimum elevation value inside the polygon and the
+minimum elevation value in a surrounding buffer ring of width
+\texttt{buffer\_dist}. If the absolute difference between these two
+minima is less than \texttt{ground\_tol}, the polygon is flagged as
+ground-contaminated and removed. The logic is straightforward: a polygon
+sitting on an actual rooftop should have notably higher minimum
+elevations than the ground immediately surrounding it. If the inside and
+outside minima are nearly the same, the polygon is likely sitting on
+flat ground rather than a raised surface.
+
+\textbf{Pass 2 --- Nested polygon removal:} After ground filtering, any
+polygon that is fully spatially contained within another polygon is
+removed. This handles cases where the edge detection and polygonization
+steps produce concentric outlines around the same building.
+Ground-contaminated polygons are removed \emph{before} this step
+intentionally --- otherwise, a large invalid polygon could cause valid
+smaller polygons nested within it to be incorrectly discarded.
+
+\textbf{\texttt{ground\_tol}} (default \texttt{3}, map units): The
+minimum elevation difference required between inside and outside minima
+to consider a polygon a valid raised structure. Increase this in flat
+terrain where small elevation differences are common noise; decrease it
+where rooftop-to-ground relief is reliably large.
+
+\textbf{\texttt{buffer\_dist}} (default \texttt{5}, map units): Width of
+the exterior ring used for the ground comparison. Should be wide enough
+to capture true ground-level values beyond the building footprint, but
+not so wide that it picks up adjacent buildings.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{valid\_polys }\OtherTok{\textless{}{-}} \FunctionTok{remove\_invalid\_polys}\NormalTok{(filtered, r\_filled)}
+
+\FunctionTok{ggplot}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{geom\_raster}\NormalTok{(}\AttributeTok{data =}\NormalTok{ r\_df, }\FunctionTok{aes}\NormalTok{(}\AttributeTok{x =}\NormalTok{ x, }\AttributeTok{y =}\NormalTok{ y, }\AttributeTok{fill =}\NormalTok{ value)) }\SpecialCharTok{+}
+  \FunctionTok{geom\_sf}\NormalTok{(}\AttributeTok{data =}\NormalTok{ valid\_polys, }\AttributeTok{fill =} \ConstantTok{NA}\NormalTok{, }\AttributeTok{color =} \StringTok{"\#c47c0f"}\NormalTok{, }\AttributeTok{linewidth =} \FloatTok{0.6}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{coord\_sf}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{scale\_fill\_rp}\NormalTok{(}\AttributeTok{name =} \StringTok{"Elev. (m)"}\NormalTok{) }\SpecialCharTok{+}
+  \FunctionTok{theme\_rp}\NormalTok{() }\SpecialCharTok{+}
+  \FunctionTok{labs}\NormalTok{(}
+    \AttributeTok{title    =} \StringTok{"Validated Building Polygons"}\NormalTok{,}
+    \AttributeTok{subtitle =} \StringTok{"Ground{-}contaminated and nested polygons removed"}
+\NormalTok{  )}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{center}\includegraphics{raster-polygonizer-workflow_files/figure-latex/remove-invalid-1} \end{center}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Step 6a --- Estimate Building
+Height}\label{step-6a-estimate-building-height}
+
+\textbf{\texttt{estimate\_building\_height(polys,\ raster,\ buffer\_dist,\ prob,\ clamp)}}
+
+Rather than simply averaging elevation values inside a polygon (which
+would give absolute rooftop elevation, not building height), this
+function estimates height \emph{relative to the surrounding ground}. For
+each polygon it computes a low percentile of raster values inside the
+polygon (\texttt{inside\_q}) and the same percentile in a surrounding
+buffer ring (\texttt{outside\_q}). Height is then
+\texttt{inside\_q\ -\ outside\_q}.
+
+Using a low percentile (default \texttt{prob\ =\ 0.02}, the 2nd
+percentile) rather than the minimum makes the estimate robust to rooftop
+features like dips or holes. The same percentile is used for both inside
+and outside values for consistency. If \texttt{clamp\ =\ TRUE}, negative
+heights (which can arise from noisy data or polygon edge effects) are
+set to zero. Using as low a value as possible inside our interior
+polygon will help to combat bias towards the peak of gabled roofs.
+
+The function returns the input polygon layer with three new columns:
+\texttt{inside\_q}, \texttt{outside\_q}, and \texttt{height}.
+
+\textbf{\texttt{buffer\_dist}} (default \texttt{5}, map units): Width of
+the exterior ring used to sample surrounding ground elevation. Should
+extend far enough to clear the building footprint and capture true
+ground values.
+
+\textbf{\texttt{prob}} (default \texttt{0.02}): Quantile used for both
+inside and outside elevation estimates. Lower values are more robust to
+high-elevation outliers but may be sensitive to data voids if coverage
+is thin.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{estimate\_building\_height}\NormalTok{(valid\_polys, r\_filled)}
+
+\NormalTok{knitr}\SpecialCharTok{::}\FunctionTok{kable}\NormalTok{(}
+  \FunctionTok{head}\NormalTok{(df[, }\FunctionTok{c}\NormalTok{(}\StringTok{"building\_id"}\NormalTok{, }\StringTok{"inside\_q"}\NormalTok{, }\StringTok{"outside\_q"}\NormalTok{, }\StringTok{"height"}\NormalTok{)], }\DecValTok{10}\NormalTok{),}
+  \AttributeTok{digits  =} \DecValTok{2}\NormalTok{,}
+  \AttributeTok{caption =} \StringTok{"Estimated building height for the first 10 polygons. Height is the difference between the 2nd{-}percentile rooftop elevation and the 2nd{-}percentile ground elevation in the surrounding buffer ring."}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.0417}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1667}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1250}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1389}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.0972}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.4306}}@{}}
+\caption{Estimated building height for the first 10 polygons. Height is
+the difference between the 2nd-percentile rooftop elevation and the
+2nd-percentile ground elevation in the surrounding buffer
+ring.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+building\_id
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+inside\_q
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+outside\_q
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+height
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+geometry
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+building\_id
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+inside\_q
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+outside\_q
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+height
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+geometry
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+3 & 3 & 152.32 & 145.34 & 6.98 & POLYGON ((465880.9 7193013,\ldots{} \\
+4 & 4 & 149.50 & 144.93 & 4.57 & POLYGON ((465784.9 7193026,\ldots{} \\
+5 & 5 & 151.92 & 145.17 & 6.75 & POLYGON ((465886.5 7193049,\ldots{} \\
+6 & 6 & 155.17 & 145.01 & 10.16 & POLYGON ((465708.5 7193103,\ldots{} \\
+7 & 7 & 149.44 & 145.21 & 4.23 & POLYGON ((465757.5 7193110,\ldots{} \\
+9 & 9 & 153.41 & 145.68 & 7.73 & POLYGON ((465884.5 7193135,\ldots{} \\
+10 & 10 & 151.50 & 144.83 & 6.67 & POLYGON ((465728.5
+7193239,\ldots{} \\
+12 & 12 & 154.38 & 144.96 & 9.42 & POLYGON ((465919.5
+7193279,\ldots{} \\
+13 & 13 & 154.36 & 144.85 & 9.51 & POLYGON ((465809.5
+7193281,\ldots{} \\
+14 & 14 & 154.42 & 144.88 & 9.55 & POLYGON ((465770.5
+7193333,\ldots{} \\
+\end{longtable}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Step 6b --- Roof Slope and Aspect via
+RANSAC}\label{step-6b-roof-slope-and-aspect-via-ransac}
+
+\textbf{\texttt{roof\_slope\_RANSAC(raster,\ buildings,\ n\_iter,\ thresh,\ min\_inliers)}}
+
+Roof slope and orientation (aspect) are key determinants of snow
+retention --- a steep south-facing roof sheds snow quickly, while a
+shallow north-facing roof may accumulate loads several times greater.
+This function fits a plane to the raster elevation values within each
+polygon using RANSAC (Random Sample Consensus), a robust estimation
+method that explicitly tolerates outlier pixels caused by dormers,
+vents, parapets, and sensor noise.
+
+Each RANSAC iteration randomly draws 3 pixels from the building's raster
+footprint, fits a plane through them via linear regression
+(\texttt{z\ \textasciitilde{}\ x\ +\ y}), and counts how many of the
+\emph{remaining} pixels have residuals below \texttt{thresh} (inliers).
+After \texttt{n\_iter} iterations, the plane that maximized inlier count
+is selected and used to compute final slope and aspect:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Slope} = \texttt{atan(sqrt(a²\ +\ b²))\ ×\ 180/π}, where
+  \texttt{a} and \texttt{b} are the x and y plane coefficients
+\item
+  \textbf{Aspect} = \texttt{(atan2(-a,\ -b)\ ×\ 180/π)\ \%\%\ 360},
+  giving compass bearing of the downslope direction
+\end{itemize}
+
+A \textbf{stability metric} (\texttt{slope\_range}) is also returned:
+the 97.5th minus 2.5th percentile of slope estimates across the top 5\%
+of candidate fits, ranked by inlier count. A low value means those top
+candidates agreed closely --- the roof surface is planar and the fit is
+reliable. A high value suggests the roof geometry is complex or the data
+is noisy.
+
+\textbf{\texttt{thresh}} (default \texttt{0.1}, elevation units): The
+residual distance within which a pixel is counted as an inlier. Tighten
+this for high-density LiDAR where rooftop surfaces are reliably smooth.
+Loosen it for coarser data where pixel-to-plane scatter is inherently
+larger. \emph{For scenes with many small buildings, individual polygons
+contain fewer pixels, so each pixel carries more weight --- a tighter
+\texttt{thresh} here helps ensure the fitted plane is genuinely
+representative of the roof surface rather than a statistical accident.}
+
+\textbf{\texttt{min\_inliers}} (default \texttt{10}): Minimum pixels
+required to accept any candidate plane. For small buildings with few
+raster cells, or lower resolution rasters, lower this to avoid
+discarding valid fits. For large buildings, raising it ensures the plane
+is well-supported across the full footprint. Mostly this parameter is
+treated as a fail-safe, and is not meant to be tuned.
+
+\textbf{\texttt{n\_iter}} (default \texttt{500}): Number of random
+3-point samples evaluated. More iterations improve the chance of finding
+the globally best plane. Raise this towards the ceiling of what
+computational power will allow for best-fit estimates.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buildings\_sv }\OtherTok{\textless{}{-}}\NormalTok{ terra}\SpecialCharTok{::}\FunctionTok{vect}\NormalTok{(valid\_polys)}
+
+\ControlFlowTok{if}\NormalTok{ (}\SpecialCharTok{!}\StringTok{"building\_id"} \SpecialCharTok{\%in\%} \FunctionTok{names}\NormalTok{(buildings\_sv)) \{}
+\NormalTok{  buildings\_sv}\SpecialCharTok{$}\NormalTok{building\_id }\OtherTok{\textless{}{-}} \FunctionTok{seq\_len}\NormalTok{(}\FunctionTok{nrow}\NormalTok{(buildings\_sv))}
+\NormalTok{\}}
+
+\NormalTok{ransac\_result }\OtherTok{\textless{}{-}} \FunctionTok{roof\_slope\_RANSAC}\NormalTok{(}
+  \AttributeTok{raster      =}\NormalTok{ r\_filled,}
+  \AttributeTok{buildings   =}\NormalTok{ buildings\_sv,}
+  \AttributeTok{n\_iter      =} \DecValTok{500}\DataTypeTok{L}\NormalTok{,}
+  \AttributeTok{thresh      =} \FloatTok{0.1}\NormalTok{,}
+  \AttributeTok{min\_inliers =} \DecValTok{10}\DataTypeTok{L}\NormalTok{,}
+  \AttributeTok{quiet       =} \ConstantTok{TRUE}
+\NormalTok{)}
+
+\NormalTok{knitr}\SpecialCharTok{::}\FunctionTok{kable}\NormalTok{(}
+  \FunctionTok{head}\NormalTok{(ransac\_result}\SpecialCharTok{$}\NormalTok{summary\_table, }\DecValTok{10}\NormalTok{),}
+  \AttributeTok{digits  =} \DecValTok{2}\NormalTok{,}
+  \AttributeTok{caption =} \StringTok{"Roof slope and aspect estimates. slope\_range is the spread of slope values across the top 5\% of RANSAC candidate fits — lower values indicate a more stable, reliable plane fit."}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1600}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1333}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1467}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1333}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1600}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.2667}}@{}}
+\caption{Roof slope and aspect estimates. slope\_range is the spread of
+slope values across the top 5\% of RANSAC candidate fits --- lower
+values indicate a more stable, reliable plane fit.}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedleft
+building\_id
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+slope\_deg
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+aspect\_deg
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+n\_inliers
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+slope\_range
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+top\_5\_percent\_count
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedleft
+building\_id
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+slope\_deg
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+aspect\_deg
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+n\_inliers
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+slope\_range
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+top\_5\_percent\_count
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+3 & 17.84 & 95.44 & 25 & 2.33 & 11 \\
+4 & 1.83 & 181.88 & 38 & 1.18 & 11 \\
+5 & 5.01 & 180.47 & 234 & 0.66 & 16 \\
+6 & 0.34 & 203.79 & 2130 & 0.35 & 23 \\
+7 & 0.04 & 12.72 & 218 & 0.35 & 22 \\
+9 & 0.61 & 303.03 & 742 & 0.57 & 24 \\
+10 & 0.32 & 354.93 & 693 & 0.46 & 20 \\
+12 & 0.05 & 199.72 & 964 & 0.18 & 24 \\
+13 & 0.24 & 267.55 & 932 & 0.25 & 24 \\
+14 & 1.09 & 90.90 & 911 & 0.37 & 25 \\
+\end{longtable}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{What's Next?}\label{whats-next}
+
+With per-building height, slope, and aspect values in hand, the natural
+next steps are:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Snow load estimation} --- difference two DSMs (pre- and
+  post-snowfall) within each validated polygon to derive snow depth,
+  then combine with slope to estimate structural load
+\item
+  \textbf{Spatial aggregation} --- summarize risk metrics by
+  neighborhood, building type, or construction era
+\item
+  \textbf{Validation} --- compare derived slope values against as-built
+  drawings or field measurements to quantify method accuracy
+\end{itemize}
+
+All outputs are standard R objects --- \texttt{sf} data frames and
+\texttt{terra} rasters --- and can be written to disk with
+\texttt{sf::st\_write()} and \texttt{terra::writeRaster()} respectively.
+
+\end{document}
