@@ -17,7 +17,7 @@
 #'   the exterior comparison ring. Default is 1.
 #' @param ground_tol Numeric tolerance for difference between inside and
 #'   outside minimum raster values. If the absolute difference is less than
-#'   this value, the polygon is considered ground-contaminated. Default 0.25.
+#'   this value, the polygon is considered ground-contaminated. Default 3.
 #' @param remove_nested Logical; if `TRUE`, polygons fully contained within
 #'   other polygons are removed after ground filtering. Default `TRUE`.
 #'

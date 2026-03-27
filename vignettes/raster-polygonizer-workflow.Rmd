@@ -76,7 +76,6 @@ The sample dataset covers a small area of Fairbanks, Alaska. `r` is a LiDAR-deri
 
 ---
 
-#We define a shared ggplot theme using a warm earth-tone document background, and a blue-to-gold raster fill palette. Blue and gold sit across from each other on the color wheel — the cool-to-warm contrast gives elevation data strong visual pop against the neutral document background while remaining readable in print.
 
 ```{r theme, include=FALSE}
 theme_rp <- function() {
